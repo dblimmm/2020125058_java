@@ -1,4 +1,8 @@
 //기존 코드 맨 밑으로 내려두고 기말 프로젝트 코드 작성 중
+//더 해야 하는 것 : 
+//door 사용하는 부분 적절한 위치에 break넣어서 연산량 조절하기
+//그럼끝인것같ㅇ음
+
 
 import java.util.*;
 
@@ -103,8 +107,8 @@ class ChaRacter
 	{
 		xCoordinate = x;
 		yCoordinate = y;
-		isItAttacked = 0;
 		candy = 3;
+		isItAttacked = 0;
 	}
 
 	//이번 턴에 타인과 같은 칸에 위치하게 되어 공격 당했을 때
@@ -117,11 +121,18 @@ class ChaRacter
 			candy --; //캔디 1개 감소
 		}
 	}
+		
+	public void earnCandy()
+	{
+		candy ++;
+	}
 	
 	public void resetAttacked()
 	{
 		isItAttacked = 0;
 	}
+	
+
 	
 	//속성을 return 하는 함수들
 	public int getX()
@@ -136,6 +147,7 @@ class ChaRacter
 	{
 		return candy;
 	}
+
 	public void testPrint()
 	{
 		System.out.printf("이 캐릭터는 (%d, %d)에 위치하고 있으며, %d개의 캔디를 갖고 있습니다.\n", xCoordinate, yCoordinate, candy);
@@ -169,7 +181,8 @@ class NounPlayerCharacter extends ChaRacter
 class PlayerCharacter extends ChaRacter
 {
 	private int actionPoint;
-	private ArrayList<Door> hasDoors; //갖고 있는 문의 종류에 대한 리스트를 갖고 있어야 함. 처음 생성할 때 한개의 문을 갖고 시작함.
+	private ArrayList<Door> hasDoors; //갖고 있는 문의 종류에 대한 리스트를 갖고 있어야 함.
+	//처음 생성할 때 한개의 문을 갖고 시작함.
 	private int secondRoll; //자신의 턴에서 두번째 주사위 굴림 기회가 있는지(상대방의 사탕을 먹은 뒤) 체크함.
 	//두번째 굴림 기회에서 또 다른 캐릭터의 사탕을 먹는다면 어떻게 될까? 그때는 두번째 주사위 굴림 기회를 사용하면 안됨!
 	//언제 0으로 초기화해야할지 고민해 봐야 함.
@@ -224,22 +237,46 @@ class PlayerCharacter extends ChaRacter
 		actionPoint --;
 	}
 	
-	public void earnCandy()
-	{
-		candy ++;
-	}
-	
 	//문을 회수하면서 갖고 있는 문에 하나를 추가한다.
 	public void addDoor(int x, int y, String doorShape)
 	{
 		//문을 회수할 때는 main에 있는 전체 doors관리 array에서 해당 문이 삭제되어야 한다.
 		hasDoors.add(new Door(x, y, doorShape));
+		actionPoint--;
+	}
+	
+	//index값에 해당하는 위치의 Door를 지운다
+	public void deleteDoor(int index)
+	{
+		hasDoors.remove(index);
+		actionPoint --;
+	}
+	
+	public void secondRolled()
+	{
+		secondRoll = 1;
+	}
+	
+	public void resetSecondRoll()
+	{
+		secondRoll = 0;
+	}
+
+	
+	//소지하고 있는 Doors리스트를 반환하는 함수인데 이런게 되나? >됨.
+	public ArrayList<Door> getHasDoors()
+	{
+		return hasDoors;
 	}
 	
 	//밑으로 속성 리턴받는 함수들과 테스트 프린트 함수
 	public int getActionPoint()
 	{
 		return actionPoint;
+	}
+	public int getSecondRoll()
+	{
+		return secondRoll;
 	}
 	
 		public void testPrint()
@@ -309,10 +346,6 @@ public class Main
 			{
 				System.out.println("첫 주사위를 굴려 액션 포인트를 획득하세요. 주사위 굴리기 명령어는 D");
 				action = input.nextLine();
-				if(action.equals("finish"))
-				{
-					return;
-				}
 				if(action.equals("D"))
 				{
 					pc.rollingDice();
@@ -320,9 +353,10 @@ public class Main
 				}
 				
 				//액션포인트가 잔존하는 한 계속 액션
+				hasActionWhile:
 				while(pc.getActionPoint() > 0)
 				{
-					System.out.println("행동 선언. 오른쪽 이동은 R, 왼쪽 이동은 L, 문 사용은 D, 문 회수는 A");
+					System.out.println("행동 선언. 오른쪽 이동은 R, 왼쪽 이동은 L, 문 사용은 D, 문 회수는 A, 문 생성은 M");
 					action = input.nextLine();
 					if(action.equals("D"))
 					{
@@ -333,13 +367,13 @@ public class Main
 						//나온 문은 사용되었음을 확인하는 변수가 변경 됨.
 						for(Door door : doors)
 						{
-							//모든 문을 돌면서 pc랑 같은 위치에 있는 문이 있는지 확인함
+							//모든 문을 돌면서 pc랑 같은 위치에 있는 문이 있는지 확인함. 이건 항상 0~1개
 							if(door.getX() == pc.getX() && door.getY() == pc.getY())
 							{
 								//이 배열에는 이동 가능한 문을 저장합니다
 								ArrayList<Integer> indexList = new ArrayList<Integer>();
 								System.out.printf("사용할 수 있는 문이 있습니다. 해당 문의 모양은 %s입니다.\n", door.getShape());
-								indexList.add(doors.indexOf(door));
+								indexList.add(doors.indexOf(door)); //해당 문의 인덱스를 저장
 								
 								//이 문에서 shape를 받아서 다시 모든 문을 돌면서 같은 모양의 문이 있는지 확인합니다
 								//또한 indexList에 인덱스들을 추가해서 차후 플레이어가 인덱스를 선택해서 이동할 수 있도록 합니다
@@ -355,19 +389,23 @@ public class Main
 										indexList.add(doors.indexOf(compDoor));
 									}
 								}//나올 문 체크하는 for문을 닫습니다.
+								//첫번째로 저장했던 사용한 문을 이동 가능 문 목록에서 지웁니다
+								indexList.remove(0); 
+								//고민 지점 : arraylist에서 'remove'같은 이름의 함수로 해당 인덱스의 원소를 지우거나 해당 원소를 지운다.
+								//근데 <int>리스트라서 이럼 인덱스로 지우나 내용물로 지우나?...;;
 								System.out.printf("이동할 문을 선택해 주십시오.\n");
 								selectDoor = input.nextInt(); //이동할 문 선택
 								input.nextLine();
-								System.out.printf("방금 전에 입력한 이동할 문 : %d\n", selectDoor);
+								//System.out.printf("방금 전에 입력한 이동할 문 : %d\n", selectDoor);
 								if(indexList.contains(selectDoor)) //이동할 문이 이동 가능한 문 리스트에 있다면!!
 								{
 									//PC를 이동시키고
 									pc.useDoor(doors.get(selectDoor).getX(), doors.get(selectDoor).getY());
 									//나온 door에 이동되었음을 확인하는 변수 수정
 									doors.get(selectDoor).useIt();
-									System.out.printf("ust It 잘 되는지 확인 : %d\n", doors.get(selectDoor).getIsItUsed());
+									//System.out.printf("ust It 잘 되는지 확인 : %d\n", doors.get(selectDoor).getIsItUsed());
+									break;
 								}
-								
 							}//pc가 사용할 수 있는 문이 있는 경우의 if문을 닫습니다
 						}//pc가 사용할 수 있는 문을 체크하는 for문을 닫습니다
 						
@@ -376,8 +414,43 @@ public class Main
 					//문 회수
 					else if(action.equals("A"))
 					{
-						
+						for(Door door : doors)
+						{
+							if(pc.getX() == door.getX() && pc.getY() == door.getY() && door.getIsItUsed() == 1)
+							{
+								pc.addDoor(door.getX(), door.getY(), door.getShape());
+								door.resetUse();
+								doors.remove(door);
+								break;
+							}
+						}//doors를 돌면서 현재 위치에 Door이 있는지 확인하는 for문 종료 
 					}//"A"를 입력해 문을 회수하는 경우의 if문을 닫습니다
+					
+					//문 생성
+					else if(action.equals("M"))
+					{
+						//같은 위치에 다른 문이 있는지 확인하는 for문
+						for(Door door : doors)
+						{
+							if(pc.getX() == door.getX() && pc.getY() == door.getY())
+							{
+								System.out.println("이곳에는 이미 다른 문이 존재합니다.");
+								continue hasActionWhile;
+							}
+						}
+						//갖고 있는 문 보여주자
+						pc.testPrint();
+						System.out.println("설치할 문의 index(0부터 시작)을 입력해주십시오.");
+						
+						//설치할 문의 index번호를 받아서
+						selectDoor = input.nextInt();
+						input.nextLine();
+						
+						//필드에 설치
+						doors.add(pc.getHasDoors().get(selectDoor));
+						//pc의 hasDoors에서 삭제
+						pc.deleteDoor(selectDoor);
+					}//"M"을 입력해 필드에 문을 생성하는 경우의 if문을 닫습니다.
 					
 					else if(action.equals("R"))
 					{
@@ -389,23 +462,24 @@ public class Main
 							{
 								npc.attacked();
 								pc.earnCandy();
-								//캔디 먹은 뒤에는 주사위를 다시 굴려야 함
-								//for문의 맨 앞으로 돌아가면 좋은데, 그렇게 돌아가면 다음 pc로 차례가 넘어가는 게 아닌가? 확인 필요함.
-								//여기서 주사위 다시 굴리고 ap가 잔존하는 한 돌아가는 while계속 도는 것도 괜찮을 듯 함
-								//주사위 굴리는 부분 코드가 중복되니까 이부분 함수로 뺄 수 있을지 고민하기!
-								System.out.println("두번째 주사위를 굴려 액션 포인트를 획득하세요. 주사위 굴리기 명령어는 D");
-								action = input.nextLine();
-								if(action.equals("finish"))
+								//캔디 먹은 뒤에는 주사위를 다시 굴려야 함(본인 턴에 1회만 가능)
+								if(pc.getSecondRoll() == 0)
 								{
-									return;
+									System.out.println("두번째 주사위를 굴려 액션 포인트를 획득하세요. 주사위 굴리기 명령어는 D");
+									action = input.nextLine();
+									if(action.equals("finish"))
+									{
+										return;
+									}
+									if(action.equals("D"))
+									{
+										pc.rollingDice();
+										pc.secondRolled();
+										System.out.printf("주사위를 굴려 얻은 액션 포인트는 %d입니다.\n", pc.getActionPoint());
+									}
+									break;
 								}
-								if(action.equals("D"))
-								{
-									pc.rollingDice();
-									System.out.printf("주사위를 굴려 얻은 액션 포인트는 %d입니다.\n", pc.getActionPoint());
-								}
-								break;
-							}
+							}//같은 칸에 있는 npc리스트 확인하는 if문 끝
 						}//캔디 먹는 거 확인용으로 npc리스트 도는 거 끝
 						for(PlayerCharacter pc2 : playerCharacters)
 						{//리스트에서 자신이 아닌 다른 pc캐릭터이며 위치가 같은 경우
@@ -413,18 +487,22 @@ public class Main
 							{
 								pc2.attacked();
 								pc.earnCandy();
-								System.out.println("두번째 주사위를 굴려 액션 포인트를 획득하세요. 주사위 굴리기 명령어는 D");
-								action = input.nextLine();
-								if(action.equals("finish"))
+								if(pc.getSecondRoll() == 0)
 								{
-									return;
+									System.out.println("두번째 주사위를 굴려 액션 포인트를 획득하세요. 주사위 굴리기 명령어는 D");
+									action = input.nextLine();
+									if(action.equals("finish"))
+									{
+										return;
+									}
+									if(action.equals("D"))
+									{
+										pc.rollingDice();
+										pc.secondRolled();
+										System.out.printf("주사위를 굴려 얻은 액션 포인트는 %d입니다.\n", pc.getActionPoint());
+									}
+									break;
 								}
-								if(action.equals("D"))
-								{
-									pc.rollingDice();
-									System.out.printf("주사위를 굴려 얻은 액션 포인트는 %d입니다.\n", pc.getActionPoint());
-								}
-								break;
 							}
 						}//캔디 먹는거 확인용으로 pc2리스트 도는 거 끝
 					}//"R"을 입력해 오른쪽 이동하는 경우의 if문을 닫습니다
@@ -439,23 +517,22 @@ public class Main
 							{
 								npc.attacked();
 								pc.earnCandy();
-								//캔디 먹은 뒤에는 주사위를 다시 굴려야 함
-								//for문의 맨 앞으로 돌아가면 좋은데, 그렇게 돌아가면 다음 pc로 차례가 넘어가는 게 아닌가? 확인 필요함.
-								//여기서 주사위 다시 굴리고 ap가 잔존하는 한 돌아가는 while계속 도는 것도 괜찮을 듯 함
-								//주사위 굴리는 부분 코드가 중복되니까 이부분 함수로 뺄 수 있을지 고민하기!
-								//그리고 이미 두번째 주사위를 굴렸다면 세번째 주사위까지의 기회가 있으면 안됨! 이부분도 변수로 빼야 할까?
-								System.out.println("두번재 주사위를 굴려 액션 포인트를 획득하세요. 주사위 굴리기 명령어는 D");
-								action = input.nextLine();
-								if(action.equals("finish"))
+								if(pc.getSecondRoll() == 0)
 								{
-									return;
+									System.out.println("두번째 주사위를 굴려 액션 포인트를 획득하세요. 주사위 굴리기 명령어는 D");
+									action = input.nextLine();
+									if(action.equals("finish"))
+									{
+										return;
+									}
+									if(action.equals("D"))
+									{
+										pc.rollingDice();
+										pc.secondRolled();
+										System.out.printf("주사위를 굴려 얻은 액션 포인트는 %d입니다.\n", pc.getActionPoint());
+									}
+									break;
 								}
-								if(action.equals("D"))
-								{
-									pc.rollingDice();
-									System.out.printf("주사위를 굴려 얻은 액션 포인트는 %d입니다.\n", pc.getActionPoint());
-								}
-								break;
 							}
 						}//캔디 먹는 거 확인용으로 npc리스트 도는 거 끝
 						for(PlayerCharacter pc2 : playerCharacters)
@@ -464,18 +541,22 @@ public class Main
 							{
 								pc2.attacked();
 								pc.earnCandy();
-								System.out.println("두번째 주사위를 굴려 액션 포인트를 획득하세요. 주사위 굴리기 명령어는 D");
-								action = input.nextLine();
-								if(action.equals("finish"))
+								if(pc.getSecondRoll() == 0)
 								{
-									return;
+									System.out.println("두번째 주사위를 굴려 액션 포인트를 획득하세요. 주사위 굴리기 명령어는 D");
+									action = input.nextLine();
+									if(action.equals("finish"))
+									{
+										return;
+									}
+									if(action.equals("D"))
+									{
+										pc.rollingDice();
+										pc.secondRolled();
+										System.out.printf("주사위를 굴려 얻은 액션 포인트는 %d입니다.\n", pc.getActionPoint());
+									}
+									break;
 								}
-								if(action.equals("D"))
-								{
-									pc.rollingDice();
-									System.out.printf("주사위를 굴려 얻은 액션 포인트는 %d입니다.\n", pc.getActionPoint());
-								}
-								break;
 							}
 						}//캔디 먹는거 확인용으로 pc2리스트 도는 거 끝
 					}//"L"을 입력해 왼쪽 이동하는 경우의 if문을 닫습니다
@@ -483,37 +564,54 @@ public class Main
 					//명령어가 아닌 다른 걸 입력한 경우
 					else
 					{
-						System.out.printf("명령어를 다시 입력해주십시오.");
+						System.out.printf("명령어를 다시 입력해주십시오.\n");
 						continue;
 					}
 					
 					System.out.printf("한 행동을 마쳤습니다.\n");
 					pc.testPrint();
-					
-					//pc턴 종료마다 모든 문 사용했는지 확인 하는 것 0으로 초기화	
-					for(Door door : doors)
-					{
-						door.resetUse();
-					}
-					//pc턴 종료마다 모든 캐릭터 공격당했는지 확인 하는 것 0으로 초기화
-					for(NounPlayerCharacter npc : nounPlayerCharacters)
-					{
-						npc.resetAttacked();
-					}
-					for(PlayerCharacter pc2 : playerCharacters)
-					{
-						pc.resetAttacked();
-					}
 				}//한 pc의 액션포인트가 잔존하는 동안 계속 턴 갖는 거 끝
+				pc.resetSecondRoll();
 				System.out.printf("턴을 마쳤습니다.\n");
+				//pc턴 종료마다 모든 문 사용했는지 확인 하는 것 0으로 초기화	
+				for(Door door : doors)
+				{
+					door.resetUse();
+				}
+				//pc턴 종료마다 모든 캐릭터 공격당했는지 확인 하는 것 0으로 초기화
+				for(NounPlayerCharacter npc : nounPlayerCharacters)
+				{
+					npc.resetAttacked();
+				}
+				for(PlayerCharacter pc2 : playerCharacters)
+				{
+					pc.resetAttacked();
+				}
+				
 			}//pc두명 도는 for문 끝
 			
 			//두명의 pc행동을 마친 뒤 두 npc도 이동시키고 다음 라운드
 			for(NounPlayerCharacter npc : nounPlayerCharacters)
 			{
 				//이동할 때 이미 pc가 있는 자리로 이동한다면 어떻게 처리할 지 고민의 여지가 있 음...
+				//다른 npc랑은 영원히 마주칠 일 없으니 pc와의 충돌만 고려하면 됨
 				npc.randomMove();
-			}//npc두명 돌면서 랜덤 이동시키는 for문 끝
+				for(PlayerCharacter pc : playerCharacters)
+				{
+					if(npc.getX() == pc.getX() && npc.getY() == pc.getY())
+					{
+						pc.attacked();
+						npc.earnCandy();
+					}
+				}//pc두명 돌면서 npc와의 충돌이 있는지 확인하는 for문 끝
+				
+				//npc의 한 턴이 끝나면 isItAttacked를 초기화해요
+				for(PlayerCharacter pc : playerCharacters)
+				{
+					pc.resetAttacked();
+				}
+				}//npc두명 돌면서 랜덤 이동시키는 for문 끝
+			
 		}//10라운드 플레이 for문 끝
 		
 	}//public static main 끝
