@@ -1,7 +1,6 @@
 //기존 코드 맨 밑으로 내려두고 기말 프로젝트 코드 작성 중
 //더 해야 하는 것 : 
 //door 사용하는 부분 적절한 위치에 break넣어서 연산량 조절하기
-//그럼끝인것같ㅇ음
 
 
 import java.util.*;
@@ -147,7 +146,10 @@ class ChaRacter
 	{
 		return candy;
 	}
-
+	public int getIsItAttacked()
+	{
+		return isItAttacked;
+	}
 	public void testPrint()
 	{
 		System.out.printf("이 캐릭터는 (%d, %d)에 위치하고 있으며, %d개의 캔디를 갖고 있습니다.\n", xCoordinate, yCoordinate, candy);
@@ -370,10 +372,10 @@ public class Main
 							//모든 문을 돌면서 pc랑 같은 위치에 있는 문이 있는지 확인함. 이건 항상 0~1개
 							if(door.getX() == pc.getX() && door.getY() == pc.getY())
 							{
-								//이 배열에는 이동 가능한 문을 저장합니다
+								//pc의 위치에 문이 있다면
+								//shape값이 같은 이동 가능한 문들을 저장할 배열 생성
 								ArrayList<Integer> indexList = new ArrayList<Integer>();
 								System.out.printf("사용할 수 있는 문이 있습니다. 해당 문의 모양은 %s입니다.\n", door.getShape());
-								indexList.add(doors.indexOf(door)); //해당 문의 인덱스를 저장
 								
 								//이 문에서 shape를 받아서 다시 모든 문을 돌면서 같은 모양의 문이 있는지 확인합니다
 								//또한 indexList에 인덱스들을 추가해서 차후 플레이어가 인덱스를 선택해서 이동할 수 있도록 합니다
@@ -381,7 +383,7 @@ public class Main
 								{
 									//모양이 같으면서 인덱스가 동일하지 않은 경우 추가합니다
 									if(door.getShape().equals(compDoor.getShape()) &&
-										 indexList.get(0) != doors.indexOf(compDoor))
+										 doors.indexOf(door) != doors.indexOf(compDoor))
 									{
 										//사용한 문, 나올 수 있는 문이 전부 나오는 것을 확인했습니다.
 										System.out.printf("사용할 수 있는 문과 모양이 같은 문의 인덱스는 %d입니다. \n",
@@ -389,10 +391,6 @@ public class Main
 										indexList.add(doors.indexOf(compDoor));
 									}
 								}//나올 문 체크하는 for문을 닫습니다.
-								//첫번째로 저장했던 사용한 문을 이동 가능 문 목록에서 지웁니다
-								indexList.remove(0); 
-								//고민 지점 : arraylist에서 'remove'같은 이름의 함수로 해당 인덱스의 원소를 지우거나 해당 원소를 지운다.
-								//근데 <int>리스트라서 이럼 인덱스로 지우나 내용물로 지우나?...;;
 								System.out.printf("이동할 문을 선택해 주십시오.\n");
 								selectDoor = input.nextInt(); //이동할 문 선택
 								input.nextLine();
@@ -458,7 +456,8 @@ public class Main
 						//이동 후 캔디 먹을 건덕지 확인, npc리스트부터 돈다
 						for(NounPlayerCharacter npc : nounPlayerCharacters)
 						{
-							if(pc.getX() == npc.getX() && pc.getY() == npc.getY())
+							if(pc.getX() == npc.getX() && pc.getY() == npc.getY() &&
+								 npc.getCandy() > 0 && npc.getIsItAttacked() == 0)
 							{
 								npc.attacked();
 								pc.earnCandy();
@@ -483,7 +482,8 @@ public class Main
 						}//캔디 먹는 거 확인용으로 npc리스트 도는 거 끝
 						for(PlayerCharacter pc2 : playerCharacters)
 						{//리스트에서 자신이 아닌 다른 pc캐릭터이며 위치가 같은 경우
-							if(pc != pc2 && pc.getX() == pc2.getX() && pc.getY() == pc2.getY())
+							if(pc != pc2 && pc.getX() == pc2.getX() && pc.getY() == pc2.getY()
+								 && pc2.getCandy() > 0 && pc2.getIsItAttacked() == 0)
 							{
 								pc2.attacked();
 								pc.earnCandy();
@@ -513,7 +513,8 @@ public class Main
 						//이동 후 캔디 먹을 건덕지 확인, npc리스트부터 돈다
 						for(NounPlayerCharacter npc : nounPlayerCharacters)
 						{
-							if(pc.getX() == npc.getX() && pc.getY() == npc.getY())
+							if(pc.getX() == npc.getX() && pc.getY() == npc.getY() &&
+								npc.getCandy() > 0 && npc.getIsItAttacked() == 0)
 							{
 								npc.attacked();
 								pc.earnCandy();
@@ -537,7 +538,8 @@ public class Main
 						}//캔디 먹는 거 확인용으로 npc리스트 도는 거 끝
 						for(PlayerCharacter pc2 : playerCharacters)
 						{//리스트에서 자신이 아닌 다른 pc캐릭터이며 위치가 같은 경우
-							if(pc != pc2 && pc.getX() == pc2.getX() && pc.getY() == pc2.getY())
+							if(pc != pc2 && pc.getX() == pc2.getX() && pc.getY() == pc2.getY() &&
+								 pc2.getCandy() > 0 && pc2.getIsItAttacked() == 0)
 							{
 								pc2.attacked();
 								pc.earnCandy();
@@ -610,7 +612,9 @@ public class Main
 				{
 					pc.resetAttacked();
 				}
-				}//npc두명 돌면서 랜덤 이동시키는 for문 끝
+				
+				npc.testPrint();
+			}//npc두명 돌면서 랜덤 이동시키는 for문 끝
 			
 		}//10라운드 플레이 for문 끝
 		
