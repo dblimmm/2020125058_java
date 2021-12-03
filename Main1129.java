@@ -1,6 +1,5 @@
 //기존 코드 맨 밑으로 내려두고 기말 프로젝트 코드 작성 중
 //더 해야 하는 것 : 
-//door 사용하는 부분 적절한 위치에 break넣어서 연산량 조절하기
 
 
 import java.util.*;
@@ -16,7 +15,9 @@ class Dice
 		return rollingNumber.nextInt(a) + 1;
 	}
 	
-	public static String rollingDoor()
+	//문을 랜덤으로 뽑을 때 사용하려고 만든 함수이나
+	//랜덤으로 뽑으면 문 갯수 조절과 위치 배정에 어려움이 있어 쓰지 않음
+	/*public static String rollingDoor()
 	{
 		int dice = rollingNumber.nextInt(4); //1~4
 		switch(dice)
@@ -32,36 +33,35 @@ class Dice
 			default:
 				return "error";
 		}
-	}
+	}*/
 }
 
 
 class Door
 {
 	//door는? 생성되거나 제거될 수 있다. (좌표값)이동은 불가하다. 사용시 다른 문과 연결.
-	//그럼 x,y값은 final로 줘도 되겠네
+	//그럼 x,y값은 final로 주어도 무방하다
 	final private int xCoordinate;
 	final private int yCoordinate;
 	final private String shape;
-	private int isItUsed; //이것은 '나오는 문'에 대한 속성임!!! 나왔던 문을 회수하는 거니까!!!
+	private boolean isItUsed; //이것은 '나오는 문'에 대한 속성이다. 나왔던 문이 회수 가능한 지 확인하는 것.
 	
 	//생성자
-	//무슨 종류의 문인지?(4종) 추가해야겠네
 	//문의 쉐이프는 "C", "W", "N", "D" 
 	public Door(int x, int y, String shape)
 	{
 		xCoordinate = x;
 		yCoordinate = y;
 		this.shape = shape;
-		isItUsed = 0;
+		isItUsed = false;
 	}
 	public void useIt()
 	{
-		isItUsed = 1;
+		isItUsed = true;
 	}
 	public void resetUse()
 	{
-		isItUsed = 0;
+		isItUsed = false;
 	}
 	
 	
@@ -78,7 +78,7 @@ class Door
 	{
 		return shape;
 	}
-	public int getIsItUsed()
+	public boolean getIsItUsed()
 	{
 		return isItUsed;
 	}
@@ -88,35 +88,35 @@ class Door
 	}
 }
 
-//캐릭터에서 논플레이어캐릭터/플레이어캐릭터 상속받으면 될 듯
-//Character이라는 기본 클래스가 있는 듯? 중간에 하나 대문자로 함
+//캐릭터에서 논플레이어캐릭터/플레이어캐릭터 하위 클래스를 가진다.
+//Character이라는 기본 클래스가 있는 듯하여 중간에 하나 대문자로 함
 class ChaRacter
 {
 	//모든 캐릭터는 x. y좌표가 있고 이동이 가능 함. 캔디를 가지고 있음.
 	//플레이어 캐릭터는 문을 사용할 수 있음.
 	//플레이어 캐릭터는 주사위를 굴릴 수 있음. AP(액션 포인트)를 갖고 있어야함.
-	//상속하니까 private이면 안되지! protected
-	protected int xCoordinate; //x = 0~6
+	//상속하니까 private(X) protected(O)
+	protected int xCoordinate; //x = 0~6 사이의 값을 가짐.
 	protected int yCoordinate; //y = 0~3
 	protected int candy; //소지 캔디 갯수
-	protected int isItAttacked; //전체 캐릭터는 해당 라운드에 공격을 당했는지 안당했는지 표시하는 속성이 있어야 함
+	protected boolean isItAttacked; //해당 라운드에 공격을 당했는지 안당했는지 표시하는 속성. 한 턴에 한번만 공격 당할 수 있다.
 	
 	//생성자
 	public ChaRacter(int x, int y)
 	{
 		xCoordinate = x;
 		yCoordinate = y;
-		candy = 3;
-		isItAttacked = 0;
+		candy = 3; //기본 캔디는 항상 3개
+		isItAttacked = false;
 	}
 
 	//이번 턴에 타인과 같은 칸에 위치하게 되어 공격 당했을 때
 	public void attacked()
 	{
 		//아직 공격당한 적이 없으면서 캔디를 소지하고 있을 때
-		if(isItAttacked == 0 && candy > 0)
+		if(!isItAttacked && candy > 0)
 		{
-			isItAttacked = 1; //공격당했음을 표시
+			isItAttacked = true; //공격당했음을 표시
 			candy --; //캔디 1개 감소
 		}
 	}
@@ -128,7 +128,7 @@ class ChaRacter
 	
 	public void resetAttacked()
 	{
-		isItAttacked = 0;
+		isItAttacked = false;
 	}
 	
 
@@ -146,7 +146,7 @@ class ChaRacter
 	{
 		return candy;
 	}
-	public int getIsItAttacked()
+	public boolean getIsItAttacked()
 	{
 		return isItAttacked;
 	}
@@ -161,18 +161,19 @@ class NounPlayerCharacter extends ChaRacter
 	public NounPlayerCharacter(int x, int y)
 	{
 		super(x, y);
+		//상위 클래스 생성자 candy = 3;정의한 것 등도 잘 들어간 것 확인하였음.
 	}
 	
 	public void randomMove()
 	{
-		//-1, 0, 1의 결과값이 나오려면 3면체 주사위를 굴려서 2를 빼면 되겠구나~
+		//x를 -1~1칸 랜덤하게 움직이도록 함.
 		while(true)
-		{//다른 pc가 있는 곳으로는 움직이지 않게 피해다니고 싶은데 어떻게 할 지 고민.
-			//범위 안에서 움직이도록 해요!
+		{//다른 pc가 있는 곳으로는 움직이지 않게 피해다니고 싶은데 어떻게 할 지 고민. ->피하지 않고 공격하는 게 나은 듯
+			//3면체 주사위를 굴리고 2를 빼서 -1, 0, 1의 결과값
 			int dice = (Dice.rollingDice(3) - 2);
-			if ((xCoordinate + dice > 0) && (xCoordinate + dice < 6))
+			if ((xCoordinate + dice > 0) && (xCoordinate + dice < 6)) //결과값이 벽 뚫고 지나가지 않는다면
 			{
-				xCoordinate += dice;
+				xCoordinate += dice; //이동 후 종료
 				break;
 			}
 		}
@@ -183,26 +184,23 @@ class NounPlayerCharacter extends ChaRacter
 class PlayerCharacter extends ChaRacter
 {
 	private int actionPoint;
-	private ArrayList<Door> hasDoors; //갖고 있는 문의 종류에 대한 리스트를 갖고 있어야 함.
+	private ArrayList<Door> hasDoors; //갖고 있는 문의 종류에 대한 리스트
 	//처음 생성할 때 한개의 문을 갖고 시작함.
-	private int secondRoll; //자신의 턴에서 두번째 주사위 굴림 기회가 있는지(상대방의 사탕을 먹은 뒤) 체크함.
-	//두번째 굴림 기회에서 또 다른 캐릭터의 사탕을 먹는다면 어떻게 될까? 그때는 두번째 주사위 굴림 기회를 사용하면 안됨!
-	//언제 0으로 초기화해야할지 고민해 봐야 함.
-	
-	//플레이어 캐릭터는 행동 시 AP가 깎이는 것을 여차저차 만들어야 함
-	//근데 문이 '사용된'문인걸 확인하는 게 나을 것 같음. !! 왜냐하면 나왔던 문만 회수할 수 있는거니까!
+	private boolean secondRoll; //자신의 턴에서 두번째 주사위 굴림 기회가 있는지(상대방의 사탕을 먹은 뒤) 체크함.
+	//이것으로 한 턴에 여러 사람을 공격했을 때 매번 주사위를 굴리는 것을 방지.
 	
 	public PlayerCharacter(int x, int y, String doorShape) //생성자
 	{
 		super(x, y);
-		secondRoll = 0;
+		secondRoll = false;
 		hasDoors = new ArrayList<Door>();
-		hasDoors.add(new Door(x, y, doorShape));
+		hasDoors.add(new Door(x, y, doorShape)); //x, y값은 아무렇게나 넣어서 리스트에 추가해둔다.
+		//문을 생성할 때는 플레이어 캐릭터의 x,y값을 받아 새 문을 설치하고, 소지 문 목록에서 삭제하기 때문.
 	}
 	
 	public void rollingDice()
 	{
-		actionPoint = Dice.rollingDice(6); //추가가 아니라 고정값임! +=아님!
+		actionPoint = Dice.rollingDice(6); //액션 포인트 추가가 아니라 고정값으로 +=이 아니다.
 	}
 	
 	public void moveRight()
@@ -220,8 +218,8 @@ class PlayerCharacter extends ChaRacter
 	
 	public void moveLeft()
 	{
-		if(xCoordinate != 0) //액션포인트가 있으면서 왼쪽 맨 끝 칸이 아닌 경우
-		{ //액션포인트는 main에서 체크하도록 하여서 좌표만 일단 체크
+		if(xCoordinate != 0)
+		{ //액션포인트는 main에서 체크하도록 하여서(액션포인트가 잔존한 한 턴을 이어간다) 좌표만 체크한다.
 			xCoordinate --;
 			actionPoint --;
 		}
@@ -231,7 +229,7 @@ class PlayerCharacter extends ChaRacter
 		}
 	}
 	
-	public void useDoor(int x, int y) //문을 사용할 때 x,y를 받아서 워프해요
+	public void useDoor(int x, int y) //문을 사용할 때 x,y를 받아서 한번에 이동한다.
 	{
 		//문을 사용할 때는 나왔던 문의 isitused 값이 변경되어야 한다.
 		xCoordinate = x;
@@ -256,12 +254,12 @@ class PlayerCharacter extends ChaRacter
 	
 	public void secondRolled()
 	{
-		secondRoll = 1;
+		secondRoll = true;
 	}
 	
 	public void resetSecondRoll()
 	{
-		secondRoll = 0;
+		secondRoll = false;
 	}
 
 	
@@ -276,7 +274,7 @@ class PlayerCharacter extends ChaRacter
 	{
 		return actionPoint;
 	}
-	public int getSecondRoll()
+	public boolean getSecondRoll()
 	{
 		return secondRoll;
 	}
@@ -297,7 +295,7 @@ public class Main
 {
 	public static void main(String args[])
 	{
-		//스캐너랑 스캔 받을 친구 선언!
+		//스캐너랑 스캔 받을 input
 		Scanner input = new Scanner(System.in);
 		String action; //pc에게서 받은 액션.
 		int selectDoor; //이동할 door의 인덱스를 지정할 때 사용합니다. string을 받아서 int로 변환해도 되긴 하는데 일단 int로도 갖고 있기로 해봄.
@@ -324,8 +322,9 @@ public class Main
 		doors.add(new Door(6, 2, "C"));
 		doors.add(new Door(0, 3, "N"));
 		doors.add(new Door(6, 3, "D"));
-		//윗줄까지 게임 초기 세팅 !! 말과 문들을 올려두어요~
+		//윗줄까지 게임 초기 세팅, 초기 캐릭터와 문들을 리스트에 올린다.
 		
+		/* //세팅이 잘 들어갔는지 출력하는 부분
 		System.out.printf("잘 들어갔나 뱅글뱅글 돌면서 확인, 문부터\n");
 		for(Door door : doors)
 		{
@@ -339,8 +338,10 @@ public class Main
 		{
 			pc.testPrint();
 		}
+		*/
 		
-		//게임 진행
+		
+		//게임 진행, 10라운드간
 		for(int round = 0; round < 10; round++)
 		{
 			//pc돌면서 행동 선언
@@ -360,6 +361,8 @@ public class Main
 				{
 					System.out.println("행동 선언. 오른쪽 이동은 R, 왼쪽 이동은 L, 문 사용은 D, 문 회수는 A, 문 생성은 M");
 					action = input.nextLine();
+					
+					//"D"를 입력해 자신 위치의 문을 사용하는 경우
 					if(action.equals("D"))
 					{
 						//현재 위치한 곳에 있는 문의 정보를 받아서, (고민 지점 : 리스트에 있는 shape를 모두 확인해야 할텐데,...
@@ -414,7 +417,7 @@ public class Main
 					{
 						for(Door door : doors)
 						{
-							if(pc.getX() == door.getX() && pc.getY() == door.getY() && door.getIsItUsed() == 1)
+							if(pc.getX() == door.getX() && pc.getY() == door.getY() && door.getIsItUsed())
 							{
 								pc.addDoor(door.getX(), door.getY(), door.getShape());
 								door.resetUse();
@@ -450,6 +453,7 @@ public class Main
 						pc.deleteDoor(selectDoor);
 					}//"M"을 입력해 필드에 문을 생성하는 경우의 if문을 닫습니다.
 					
+					//오른쪽 이동
 					else if(action.equals("R"))
 					{
 						pc.moveRight();
@@ -457,12 +461,12 @@ public class Main
 						for(NounPlayerCharacter npc : nounPlayerCharacters)
 						{
 							if(pc.getX() == npc.getX() && pc.getY() == npc.getY() &&
-								 npc.getCandy() > 0 && npc.getIsItAttacked() == 0)
+								 npc.getCandy() > 0 && !npc.getIsItAttacked())
 							{
 								npc.attacked();
 								pc.earnCandy();
 								//캔디 먹은 뒤에는 주사위를 다시 굴려야 함(본인 턴에 1회만 가능)
-								if(pc.getSecondRoll() == 0)
+								if(!pc.getSecondRoll()) //아직 second Roll하지 않은 경우
 								{
 									System.out.println("두번째 주사위를 굴려 액션 포인트를 획득하세요. 주사위 굴리기 명령어는 D");
 									action = input.nextLine();
@@ -483,11 +487,11 @@ public class Main
 						for(PlayerCharacter pc2 : playerCharacters)
 						{//리스트에서 자신이 아닌 다른 pc캐릭터이며 위치가 같은 경우
 							if(pc != pc2 && pc.getX() == pc2.getX() && pc.getY() == pc2.getY()
-								 && pc2.getCandy() > 0 && pc2.getIsItAttacked() == 0)
+								 && pc2.getCandy() > 0 && !pc2.getIsItAttacked())
 							{
 								pc2.attacked();
 								pc.earnCandy();
-								if(pc.getSecondRoll() == 0)
+								if(!pc.getSecondRoll())
 								{
 									System.out.println("두번째 주사위를 굴려 액션 포인트를 획득하세요. 주사위 굴리기 명령어는 D");
 									action = input.nextLine();
@@ -514,11 +518,11 @@ public class Main
 						for(NounPlayerCharacter npc : nounPlayerCharacters)
 						{
 							if(pc.getX() == npc.getX() && pc.getY() == npc.getY() &&
-								npc.getCandy() > 0 && npc.getIsItAttacked() == 0)
+								npc.getCandy() > 0 && !npc.getIsItAttacked())
 							{
 								npc.attacked();
 								pc.earnCandy();
-								if(pc.getSecondRoll() == 0)
+								if(!pc.getSecondRoll())
 								{
 									System.out.println("두번째 주사위를 굴려 액션 포인트를 획득하세요. 주사위 굴리기 명령어는 D");
 									action = input.nextLine();
@@ -539,11 +543,11 @@ public class Main
 						for(PlayerCharacter pc2 : playerCharacters)
 						{//리스트에서 자신이 아닌 다른 pc캐릭터이며 위치가 같은 경우
 							if(pc != pc2 && pc.getX() == pc2.getX() && pc.getY() == pc2.getY() &&
-								 pc2.getCandy() > 0 && pc2.getIsItAttacked() == 0)
+								 pc2.getCandy() > 0 && !pc2.getIsItAttacked())
 							{
 								pc2.attacked();
 								pc.earnCandy();
-								if(pc.getSecondRoll() == 0)
+								if(!pc.getSecondRoll())
 								{
 									System.out.println("두번째 주사위를 굴려 액션 포인트를 획득하세요. 주사위 굴리기 명령어는 D");
 									action = input.nextLine();
