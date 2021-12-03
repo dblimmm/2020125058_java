@@ -623,12 +623,17 @@ public class Main
 		}//10라운드 플레이 for문 끝
 		if(playerCharacters.get(0).getCandy() > playerCharacters.get(1).getCandy())
 		{
-			System.out.printf("Player0이 %d개의 사탕, Player1이 %d개의 사탕을 소지하여 Player0의 승리입니다.",
+			System.out.printf("Player0이 %d개의 사탕, Player1이 %d개의 사탕을 소지하여 Player0의 승리입니다.\n",
+											 playerCharacters.get(0).getCandy(), playerCharacters.get(1).getCandy());
+		}
+		else if(playerCharacters.get(0).getCandy() < playerCharacters.get(1).getCandy())
+		{
+			System.out.printf("Player0이 %d개의 사탕, Player1이 %d개의 사탕을 소지하여 Player1의 승리입니다.\n",
 											 playerCharacters.get(0).getCandy(), playerCharacters.get(1).getCandy());
 		}
 		else
 		{
-			System.out.printf("Player0이 %d개의 사탕, Player1이 %d개의 사탕을 소지하여 Player1의 승리입니다.",
+			System.out.printf("Player0이 %d개의 사탕, Player1이 %d개의 사탕을 소지하여 무승부입니다.\n",
 											 playerCharacters.get(0).getCandy(), playerCharacters.get(1).getCandy());
 		}
 		
