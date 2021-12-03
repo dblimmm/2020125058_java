@@ -621,6 +621,16 @@ public class Main
 			}//npc두명 돌면서 랜덤 이동시키는 for문 끝
 			
 		}//10라운드 플레이 for문 끝
+		if(playerCharacters.get(0).getCandy() > playerCharacters.get(1).getCandy())
+		{
+			System.out.printf("Player0이 %d개의 사탕, Player1이 %d개의 사탕을 소지하여 Player0의 승리입니다.",
+											 playerCharacters.get(0).getCandy(), playerCharacters.get(1).getCandy());
+		}
+		else
+		{
+			System.out.printf("Player0이 %d개의 사탕, Player1이 %d개의 사탕을 소지하여 Player1의 승리입니다.",
+											 playerCharacters.get(0).getCandy(), playerCharacters.get(1).getCandy());
+		}
 		
 	}//public static main 끝
 }//class Main 끝
