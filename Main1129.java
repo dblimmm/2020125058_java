@@ -311,8 +311,8 @@ public class Main
 		playerCharacters.add(new PlayerCharacter(3, 0, "N"));
 		playerCharacters.add(new PlayerCharacter(3, 3, "D"));
 		
+		nounPlayerCharacters.add(new NounPlayerCharacter(3, 1));
 		nounPlayerCharacters.add(new NounPlayerCharacter(3, 2));
-		nounPlayerCharacters.add(new NounPlayerCharacter(3, 3));
 		
 		doors.add(new Door(0, 0, "N"));
 		doors.add(new Door(6, 0, "W"));
