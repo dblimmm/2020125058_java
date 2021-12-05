@@ -274,7 +274,7 @@ class PlayerCharacter extends ChaRacter
     public void resetSecondRolled() {
         secondRolled = false;
         secondRoll = false;
-        firstRoll = false; //한 턴에 체크하는 전체 boolean 변수들 초기화
+        firstRoll = true; //한 턴에 체크하는 전체 boolean 변수들 초기화
     }
 
 
@@ -321,12 +321,14 @@ public class MainActivity extends AppCompatActivity
 
     private boolean threadOn = true;
 
-    private Thread thread;
+    private Thread checkCharacterThread;
+    private Thread checkDoorThread;
+    private boolean isHereDoor;
+
     private int whosTrun = 0; //어떤 플레이어의 턴인지 확인하는 것
 
-    //클래스
     //각 리스트 선언
-    //ArrayList<Door> doors = new ArrayList<Door>(); //맵에 깔린 Door를 관리하는 리스트
+    ArrayList<Door> doors = new ArrayList<Door>(); //맵에 깔린 Door를 관리하는 리스트
     private ArrayList<PlayerCharacter> playerCharacters = new ArrayList<PlayerCharacter>();
     private ArrayList<NounPlayerCharacter> nounPlayerCharacters = new ArrayList<NounPlayerCharacter>();
 
@@ -335,11 +337,13 @@ public class MainActivity extends AppCompatActivity
         public void handleMessage(@NonNull Message msg) {
             Toast.makeText(getApplicationContext(), "핸들러 작동 확인 합니다요.", Toast.LENGTH_SHORT).show();
         }
-
+        /* 이미지 바꾸는거 되나 실험해 봤는데(됨) 각 캐릭터에 이미지 연결하는거 인자로 캐릭터 index값 받아서 여차저차 하면 될 것 같고
+        R.drawable.id이거 값이 int로 들어가는 것도 확인 했는데 override에 인자를 추가하는 방법을 모르겠다
         @Override
         public void dispatchMessage(@NonNull Message msg) {
             nonePlayerCImgaes[0].setImageResource(R.drawable.c2_soul);
         }
+        */
     };
 
    //아하!!! 이 안에서 반복이 아니라 정의해두는거구나 이거 누르면 이렇게 움직이라고!!!!!!!!!
@@ -352,12 +356,20 @@ public class MainActivity extends AppCompatActivity
         setContentView(R.layout.activity_main);
 
 
-        //PC, NPC 리스트에 추가. 초기 설정.
+        //PC, NPC, DOOR 리스트에 추가. 초기 설정.
         playerCharacters.add(new PlayerCharacter(3, 0, "N"));
         playerCharacters.add(new PlayerCharacter(3, 3, "D"));
 
         nounPlayerCharacters.add(new NounPlayerCharacter(3, 1));
         nounPlayerCharacters.add(new NounPlayerCharacter(3, 2));
+
+        doors.add(new Door(0, 0, "N"));
+        doors.add(new Door(6, 0, "W"));
+        doors.add(new Door(0, 1, "D"));
+        doors.add(new Door(6, 1, "C"));
+        doors.add(new Door(0, 2, "W"));
+        doors.add(new Door(6, 2, "C"));
+        doors.add(new Door(0, 3, "N"));
 
         //ImageView들을 arrays에 연결해둡니다
         for(int i = 0; i < 2; i++)
@@ -413,17 +425,46 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        thread = new Thread()
+        checkDoorThread = new Thread()
+        {
+            public void run()
+            {
+                //"D"를 입력해 자신 위치의 문을 사용하는 경우
+                //현재 위치한 곳에 있는 문의 정보를 받아서, (고민 지점 : 리스트에 있는 shape를 모두 확인해야 할텐데,...
+                //for문으로 doors를 쭉 도는 것 밖에 방법이 없을까?)
+                //그 문과 같은 모양의 문들의 정보를 받아서,
+                //그 문으로 이동이 가능하게끔 함.
+                //나온 문은 사용되었음을 확인하는 변수가 변경 됨.
+                for (Door door : doors) {
+                    //모든 문을 돌면서 pc랑 같은 위치에 있는 문이 있는지 확인하여 isHereDoor 값을 변경함.
+                    if (door.getX() == playerCharacters.get(whosTrun).getX() && door.getY() == playerCharacters.get(whosTrun).getY())
+                    {
+                        isHereDoor = true;
+                    }else {
+                        isHereDoor = false;
+                    }
+                    //계속 체크하고 있는거니 sleep쪼금 준다!
+                    try {
+                        sleep(50);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        };
+
+        checkDoorThread.start();
+
+        checkCharacterThread = new Thread()
         {
             public void run(){
                 while (threadOn) //theadOn인 동안 계속 실행!
                 {
-                    //액션포인트가 잔존하는 한 계속 액션
-                    //문제점! 액션포인트가 마지막에는 0이 되는데 마지막 행동 후 체크가 안된다. 액션포인트 >0보다 확실한
-                    //무언가 구분이 있어야 할 듯 싶다. , .
 
                     //초기에 시작할 때 ap가 0이라서 후루룩 돌려버리고 굴림 기회를 초기화 해버려서 처음 굴림을 기다리는 while문
-                    while(playerCharacters.get(whosTrun).getFistRoll())
+                    //액션포인트는 0이면서 굴림 기회가 남아있는 경우
+                    while(playerCharacters.get(whosTrun).getActionPoint() ==  0 &&
+                            (playerCharacters.get(whosTrun).getFistRoll() || playerCharacters.get(whosTrun).getSecondRoll()))
                     {
                         try {
                             sleep(5);
@@ -431,7 +472,9 @@ public class MainActivity extends AppCompatActivity
                             e.printStackTrace();
                         }
                     }
-                    while (playerCharacters.get(whosTrun).getActionPoint() > 0)
+
+                    //액션 포인트가 0이 아닌 경우. 마지막 굴림까지 끝내고 ap가 0인 경우를 해결하지 못함
+                    while (playerCharacters.get(whosTrun).getActionPoint() != 0)
                     {
                         //door 관련 코드 일단 전체 삭제하였음.!!!! 캐릭터들의 : 턴 넘김, 공격, 주사위, npc이동부터 만들기.
                         //door관련은 자기 자리에 door이 있는지
@@ -439,11 +482,9 @@ public class MainActivity extends AppCompatActivity
                         for (NounPlayerCharacter npc : nounPlayerCharacters)
                         {
                             if (playerCharacters.get(whosTrun).getX() == npc.getX() && playerCharacters.get(whosTrun).getY() == npc.getY() && npc.getCandy() > 0 && !npc.getIsItAttacked()) {
-                                npc.attacked(); //이 함수는 handle에서 외관 관련 손보아야 함!
+                                npc.attacked(); //이 함수는 handle에서 외관 관련 손보아야 함! >실패
                                 playerCharacters.get(whosTrun).earnCandy();
-                                //캔디 먹은 뒤에는 주사위를 다시 굴려야 함(본인 턴에 1회만 가능)
-                                //System.out.println("두번째 주사위를 굴려 액션 포인트를 획득하세요. 주사위 굴리기 명령어는 D");
-                                //System.out.printf("주사위를 굴려 얻은 액션 포인트는 %d입니다.\n", pc.getActionPoint());
+                                //캔디 먹은 뒤에는 주사위를 다시 굴려야 함(본인 턴에 1회만 가능), earnCandy 내에서 boolean 값 수정
                             }// 같은 칸에 있는 npc리스트 확인하는 if문 끝
                         }//캔디 먹는 거 확인용으로 npc리스트 도는 거 끝
                         for (PlayerCharacter pc2 : playerCharacters) {//리스트에서 자신이 아닌 다른 pc캐릭터이며 위치가 같은 경우
@@ -452,15 +493,17 @@ public class MainActivity extends AppCompatActivity
                             {
                                 pc2.attacked();
                                 playerCharacters.get(whosTrun).earnCandy();
-                                //System.out.println("두번째 주사위를 굴려 액션 포인트를 획득하세요. 주사위 굴리기 명령어는 D");
-                                //System.out.printf("주사위를 굴려 얻은 액션 포인트는 %d입니다.\n", pc.getActionPoint());
                             }
                         }//캔디 먹는거 확인용으로 pc2리스트 도는 거 끝
-                        //System.out.printf("한 행동을 마쳤습니다.\n");
-                        //pc.testPrint();
                     }//한 pc의 액션포인트가 잔존하는 동안 계속 턴 갖는 거 끝
 
                     playerCharacters.get(whosTrun).resetSecondRolled(); //pc의 boolean들 전체 초기화
+                    if(whosTrun == 0)
+                    {
+                        whosTrun = 1;
+                    }else{
+                        whosTrun = 0;
+                    }
 
                     //System.out.printf("턴을 마쳤습니다.\n");
 
@@ -479,9 +522,13 @@ public class MainActivity extends AppCompatActivity
 
                     //^두명의 pc행동을 마친 뒤^ 두 npc도 이동시키고 다음 라운드
                     for (NounPlayerCharacter npc : nounPlayerCharacters) {
-                        //이동할 때 이미 pc가 있는 자리로 이동한다면 어떻게 처리할 지 고민의 여지가 있 음...
-                        //다른 npc랑은 영원히 마주칠 일 없으니 pc와의 충돌만 고려하면 됨
-                        npc.randomMove();
+                        npc.randomMove(); //이동시키고
+                        //애니메이션
+                        float x = -390 + npc.getX() * 135;
+                        ObjectAnimator animation = ObjectAnimator.ofFloat(nonePlayerCImgaes[nounPlayerCharacters.indexOf(npc)], "translationX", x);//고정 좌표
+                        animation.setDuration(200); //몇초동안 애니메이션 일어날 건지
+                        //animation.start(); //thread안에서 화면에 관여할 수 없음. 근데 animaition이 객체라서 이 줄만 옮겨갈 수 없음. ,
+                        //pc두명 돌면서 충돌 있는지 확인
                         for (PlayerCharacter pc : playerCharacters) {
                             if (npc.getX() == pc.getX() && npc.getY() == pc.getY()) {
                                 pc.attacked();
@@ -499,8 +546,10 @@ public class MainActivity extends AppCompatActivity
 
             }//thead public void run(){}종료
         }; //thread = new Thead(){};종료
-        thread.start();
-        handler.sendEmptyMessage(0);
-        handler.dispatchMessage(new Message());
+        checkCharacterThread.start();
+        handler.sendEmptyMessage(0); //핸들러 Toast 잘 작동되나 확인해요
+        Log.e("c2 Y : ", String.valueOf(nonePlayerCImgaes[0].getTranslationY()));
+        Log.e("c3 Y : ", String.valueOf(nonePlayerCImgaes[1].getTranslationY()));
+        //handler.dispatchMessage(new Message());
     }//Oncreate 종료
 }//메인 액티비티 종료
