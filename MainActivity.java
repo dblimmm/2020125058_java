@@ -1,14 +1,17 @@
 package com.example.spookydoors;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.animation.ObjectAnimator;
 import android.os.Bundle;
+import android.os.Message;
 import android.util.Log;
 import java.util.*;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.Toast;
+import android.os.Handler;
 
 class Dice
 {
@@ -171,18 +174,39 @@ class PlayerCharacter extends ChaRacter
     //처음 생성할 때 한개의 문을 갖고 시작함.
     private boolean secondRoll; //자신의 턴에서 두번째 주사위 굴림 기회가 있는지(상대방의 사탕을 먹은 뒤) 체크함.
     //이것으로 한 턴에 여러 사람을 공격했을 때 매번 주사위를 굴리는 것을 방지.
+    private boolean firstRoll; //초기에 주사위 여러번 굴리는 것 방지.
+    //둘다 true일 때 굴림 기회가 있는걸로 하고 굴림 기회를 소진하면 false로 변경
+    //근데 이렇게 하면 secondRoll을 여러번 할 수 있는 불상사가 생긴다!
+    private boolean secondRolled; //두번째 주사위를 굴렸던 적이 있는지 따로 체크하자
 
     public PlayerCharacter(int x, int y, String doorShape) //생성자
     {
         super(x, y);
         secondRoll = false;
+        firstRoll = true;
+        secondRolled = false;
         hasDoors = new ArrayList<Door>();
         hasDoors.add(new Door(x, y, doorShape)); //x, y값은 아무렇게나 넣어서 리스트에 추가해둔다.
         //문을 생성할 때는 플레이어 캐릭터의 x,y값을 받아 새 문을 설치하고, 소지 문 목록에서 삭제하기 때문.
     }
 
     public void rollingDice() {
-        actionPoint = Dice.rollingDice(6); //액션 포인트 추가가 아니라 고정값으로 +=이 아니다.
+        if(firstRoll == true)
+        {
+            actionPoint = Dice.rollingDice(6); //액션 포인트 추가가 아니라 고정값으로 +=이 아니다.
+            firstRoll = false;
+        }
+        else if(secondRoll == true && secondRolled == false) //2번째 굴림 기회를 얻었으면서 2번째 굴림을 한 적 없는 경우
+        {
+            actionPoint = Dice.rollingDice(6); //액션 포인트 추가가 아니라 고정값으로 +=이 아니다.
+            secondRoll = false;
+            secondRolled = true;
+        }
+        else
+        {
+            Log.e("dice error",  "굴림 기회가 없습니다.");
+        }
+
     }
 
     public void moveRight() {
@@ -241,12 +265,16 @@ class PlayerCharacter extends ChaRacter
         }
     }
 
-    public void secondRolled() {
-        secondRoll = true;
+    public void earnCandy()
+    {
+        candy++;
+        secondRoll = true; //캔디를 얻고 두번째 주사위 굴림 기회를 얻습니다!
     }
 
-    public void resetSecondRoll() {
+    public void resetSecondRolled() {
+        secondRolled = false;
         secondRoll = false;
+        firstRoll = false; //한 턴에 체크하는 전체 boolean 변수들 초기화
     }
 
 
@@ -263,6 +291,7 @@ class PlayerCharacter extends ChaRacter
     public boolean getSecondRoll() {
         return secondRoll;
     }
+    public boolean getFistRoll(){return firstRoll;}
 
     public void testPrint()
     {
@@ -276,12 +305,12 @@ class PlayerCharacter extends ChaRacter
     }
 }
 
-
 public class MainActivity extends AppCompatActivity
 {
     //변수들 선언
     private int[] playerCIDs = {R.id.c1, R.id.c4};
     private int[] nonePlayerCIDs = {R.id.c2, R.id.c3};
+    private int[] charactersSoulImages = {R.drawable.c1_soul, R.drawable.c2_soul, R.drawable.c3_soul, R.drawable.c4_soul};
     //door들은 어떻게 관리할 지 생각해야 함
     private ImageView[] playerCImgaes = new ImageView[2];
     private ImageView[] nonePlayerCImgaes = new ImageView[2];
@@ -290,16 +319,45 @@ public class MainActivity extends AppCompatActivity
     private ImageView btnRight;
     private ImageView btnLeft;
 
-    private int whosTrun = 0; //어떤 플레이어의 턴인지 확인하는 것것
+    private boolean threadOn = true;
+
+    private Thread thread;
+    private int whosTrun = 0; //어떤 플레이어의 턴인지 확인하는 것
+
+    //클래스
+    //각 리스트 선언
+    //ArrayList<Door> doors = new ArrayList<Door>(); //맵에 깔린 Door를 관리하는 리스트
+    private ArrayList<PlayerCharacter> playerCharacters = new ArrayList<PlayerCharacter>();
+    private ArrayList<NounPlayerCharacter> nounPlayerCharacters = new ArrayList<NounPlayerCharacter>();
+
+    private Handler handler = new Handler(){
+        @Override
+        public void handleMessage(@NonNull Message msg) {
+            Toast.makeText(getApplicationContext(), "핸들러 작동 확인 합니다요.", Toast.LENGTH_SHORT).show();
+        }
+
+        @Override
+        public void dispatchMessage(@NonNull Message msg) {
+            nonePlayerCImgaes[0].setImageResource(R.drawable.c2_soul);
+        }
+    };
 
    //아하!!! 이 안에서 반복이 아니라 정의해두는거구나 이거 누르면 이렇게 움직이라고!!!!!!!!!
     //그래서 이 안에서 반복문 쓰면 안됨 화면이 안뜸 이거는 무족건 실행이 바로 완료되어야 함
     //아니 그럼 내 반복문은 어디에 쓰란 말이냐아~~? ->스레드와 핸들을 이용하자 !!
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState){
         //기존에 있던 코드 두 줄
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+
+        //PC, NPC 리스트에 추가. 초기 설정.
+        playerCharacters.add(new PlayerCharacter(3, 0, "N"));
+        playerCharacters.add(new PlayerCharacter(3, 3, "D"));
+
+        nounPlayerCharacters.add(new NounPlayerCharacter(3, 1));
+        nounPlayerCharacters.add(new NounPlayerCharacter(3, 2));
 
         //ImageView들을 arrays에 연결해둡니다
         for(int i = 0; i < 2; i++)
@@ -312,29 +370,16 @@ public class MainActivity extends AppCompatActivity
         btnLeft = findViewById(R.id.btn_left);
         btnRight = findViewById(R.id.btn_right);
 
-        //클래스
-        //각 리스트 선언
-        //ArrayList<Door> doors = new ArrayList<Door>(); //맵에 깔린 Door를 관리하는 리스트
-        ArrayList<PlayerCharacter> playerCharacters = new ArrayList<PlayerCharacter>();
-        ArrayList<NounPlayerCharacter> nounPlayerCharacters = new ArrayList<NounPlayerCharacter>();
-
-        //PC, NPC 리스트에 추가. 초기 설정.
-        playerCharacters.add(new PlayerCharacter(3, 0, "N"));
-        playerCharacters.add(new PlayerCharacter(3, 3, "D"));
-
-        nounPlayerCharacters.add(new NounPlayerCharacter(3, 1));
-        nounPlayerCharacters.add(new NounPlayerCharacter(3, 2));
-
-
+        //오른쪽 버튼을 눌렀을 때
         btnRight.setOnClickListener(new View.OnClickListener()
         {
             @Override
             public void onClick(View v)
             {
                 //float x = playerCImgaes[0].getTranslationX();
-
                 playerCharacters.get(whosTrun).moveRight();
                 //이동할 x값은 -390(가장 왼쪽 칸)에서 위치*135(한칸만큼) 더함
+                //캐릭터가 갖고 있는 x속성값의 위치로 이동
                 float x = -390 + playerCharacters.get(whosTrun).getX() * 135;
                 ObjectAnimator animation = ObjectAnimator.ofFloat(playerCImgaes[whosTrun], "translationX", x);//고정 좌표
                 animation.setDuration(200); //몇초동안 애니메이션 일어날 건지
@@ -342,6 +387,7 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
+        //왼쪽 버튼을 눌렀을 때
         btnLeft.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v)
@@ -357,15 +403,104 @@ public class MainActivity extends AppCompatActivity
                 //Log.e("xWitch:", String.valueOf(x));
             }
         });
-        //주사위 버튼이 눌러 rollingdice합니다
+
+        //주사위 버튼을 눌러 rollingdice합니다
         btnDice.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                //playerCImgaes[0].setImageResource(R.drawable.c1_soul);
+                //굴림 기회가 있는지는 캐릭터 클래스 내부 메소드에서 확인/수정함.
                 playerCharacters.get(whosTrun).rollingDice();
             }
         });
 
+        thread = new Thread()
+        {
+            public void run(){
+                while (threadOn) //theadOn인 동안 계속 실행!
+                {
+                    //액션포인트가 잔존하는 한 계속 액션
+                    //문제점! 액션포인트가 마지막에는 0이 되는데 마지막 행동 후 체크가 안된다. 액션포인트 >0보다 확실한
+                    //무언가 구분이 있어야 할 듯 싶다. , .
+
+                    //초기에 시작할 때 ap가 0이라서 후루룩 돌려버리고 굴림 기회를 초기화 해버려서 처음 굴림을 기다리는 while문
+                    while(playerCharacters.get(whosTrun).getFistRoll())
+                    {
+                        try {
+                            sleep(5);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    while (playerCharacters.get(whosTrun).getActionPoint() > 0)
+                    {
+                        //door 관련 코드 일단 전체 삭제하였음.!!!! 캐릭터들의 : 턴 넘김, 공격, 주사위, npc이동부터 만들기.
+                        //door관련은 자기 자리에 door이 있는지
+                        //항상 수행되고 있는 코드니까... 계속 같은 칸에 누가 있는지 돌면서 확인하면 되겠다
+                        for (NounPlayerCharacter npc : nounPlayerCharacters)
+                        {
+                            if (playerCharacters.get(whosTrun).getX() == npc.getX() && playerCharacters.get(whosTrun).getY() == npc.getY() && npc.getCandy() > 0 && !npc.getIsItAttacked()) {
+                                npc.attacked(); //이 함수는 handle에서 외관 관련 손보아야 함!
+                                playerCharacters.get(whosTrun).earnCandy();
+                                //캔디 먹은 뒤에는 주사위를 다시 굴려야 함(본인 턴에 1회만 가능)
+                                //System.out.println("두번째 주사위를 굴려 액션 포인트를 획득하세요. 주사위 굴리기 명령어는 D");
+                                //System.out.printf("주사위를 굴려 얻은 액션 포인트는 %d입니다.\n", pc.getActionPoint());
+                            }// 같은 칸에 있는 npc리스트 확인하는 if문 끝
+                        }//캔디 먹는 거 확인용으로 npc리스트 도는 거 끝
+                        for (PlayerCharacter pc2 : playerCharacters) {//리스트에서 자신이 아닌 다른 pc캐릭터이며 위치가 같은 경우
+                            if (playerCharacters.get(whosTrun) != pc2 && playerCharacters.get(whosTrun).getX() == pc2.getX() && playerCharacters.get(whosTrun).getY() == pc2.getY()
+                                    && pc2.getCandy() > 0 && !pc2.getIsItAttacked())
+                            {
+                                pc2.attacked();
+                                playerCharacters.get(whosTrun).earnCandy();
+                                //System.out.println("두번째 주사위를 굴려 액션 포인트를 획득하세요. 주사위 굴리기 명령어는 D");
+                                //System.out.printf("주사위를 굴려 얻은 액션 포인트는 %d입니다.\n", pc.getActionPoint());
+                            }
+                        }//캔디 먹는거 확인용으로 pc2리스트 도는 거 끝
+                        //System.out.printf("한 행동을 마쳤습니다.\n");
+                        //pc.testPrint();
+                    }//한 pc의 액션포인트가 잔존하는 동안 계속 턴 갖는 거 끝
+
+                    playerCharacters.get(whosTrun).resetSecondRolled(); //pc의 boolean들 전체 초기화
+
+                    //System.out.printf("턴을 마쳤습니다.\n");
+
+                    //pc턴 종료마다 모든 문 사용했는지 확인 하는 것 0으로 초기화
+                    /*
+                    for (Door door : doors) {
+                        door.resetUse();
+                    }*/
+                    //pc턴 종료마다 모든 캐릭터 공격당했는지 확인 하는 것 0으로 초기화
+                    for (NounPlayerCharacter npc : nounPlayerCharacters) {
+                        npc.resetAttacked();
+                    }
+                    for (PlayerCharacter pc2 : playerCharacters) {
+                        pc2.resetAttacked();
+                    }
+
+                    //^두명의 pc행동을 마친 뒤^ 두 npc도 이동시키고 다음 라운드
+                    for (NounPlayerCharacter npc : nounPlayerCharacters) {
+                        //이동할 때 이미 pc가 있는 자리로 이동한다면 어떻게 처리할 지 고민의 여지가 있 음...
+                        //다른 npc랑은 영원히 마주칠 일 없으니 pc와의 충돌만 고려하면 됨
+                        npc.randomMove();
+                        for (PlayerCharacter pc : playerCharacters) {
+                            if (npc.getX() == pc.getX() && npc.getY() == pc.getY()) {
+                                pc.attacked();
+                                npc.earnCandy();
+                            }
+                        }//pc두명 돌면서 npc와의 충돌이 있는지 확인하는 for문 끝
+
+                        //npc의 한 턴이 끝나면 isItAttacked를 초기화해요
+                        for (PlayerCharacter pc : playerCharacters) {
+                            pc.resetAttacked();
+                        }
+
+                    }//npc두명 돌면서 랜덤 이동시키는 for문 끝
+                }//theadOn인동안 계속 도는 while 끝
+
+            }//thead public void run(){}종료
+        }; //thread = new Thead(){};종료
+        thread.start();
+        handler.sendEmptyMessage(0);
+        handler.dispatchMessage(new Message());
     }//Oncreate 종료
-    
-}
+}//메인 액티비티 종료
