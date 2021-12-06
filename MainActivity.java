@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.animation.ObjectAnimator;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Message;
 import android.util.Log;
@@ -122,6 +123,16 @@ public class MainActivity extends AppCompatActivity
         {
             status.setText("AP : " + String.valueOf(ap) + ", CANDY : " + String.valueOf(candy));
         }
+        public void goToEndingPage()
+        {
+            Intent intent = new Intent(MainActivity.this, EndingPage.class); //인자로 현재 액티비티와 이동할 액티비티
+            String pc1Candy = String.valueOf(playerCharacters.get(0).getCandy());
+            String pc2Candy = String.valueOf(playerCharacters.get(1).getCandy());
+
+            intent.putExtra("pc1Candy", pc1Candy); //이동할 액티비티에 pc캔디값을 쏩니다
+            intent.putExtra("pc2Candy", pc2Candy);
+            startActivity(intent);
+        }
 
         //npc랜덤 이동, 이미지 이동
         public void npcRandomMove()
@@ -229,9 +240,9 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onCreate(Bundle savedInstanceState){
         //기존에 있던 코드 두 줄
+        //의문점 : restart해서 여기로 돌아오면 변수는 위에 그대로 존재해서, add를 쓰면 리스트가 두배로 늘어나나?
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
 
         //PC, NPC, DOOR (정보값) 리스트에 추가. 초기 설정.
         playerCharacters.add(new PlayerCharacter(3, 0, "N"));
@@ -551,7 +562,7 @@ public class MainActivity extends AppCompatActivity
         {
             public void run()
             {
-                int round = 0;
+                int round = 1;
                 //전체를 계속 진행합니다
                     while (threadOn)
                     {
@@ -578,6 +589,19 @@ public class MainActivity extends AppCompatActivity
                             }
                         }//한 pc의 액션포인트가 잔존하는 동안 계속 턴 갖는 거 끝
                     round++;
+                        if(round == 3)
+                        {
+                            //wait!
+                            try
+                            {
+                                sleep(1000);
+                            } catch (InterruptedException e)
+                            {
+                                e.printStackTrace();
+                            }
+                            myHandler.goToEndingPage();
+                            break;
+                        }
                     playerCharacters.get(whosTrun).resetSecondRolled(); //방금 pc 의 boolean들 전체 초기화
 
                     //차례 넘김
@@ -618,8 +642,5 @@ public class MainActivity extends AppCompatActivity
         }; //thread = new Thead(){};종료
 
         checkCharacterThread.start();
-        //Log.e("c2 Y : ", String.valueOf(nonePlayerCImgaes[0].getTranslationY()));
-        //Log.e("c3 Y : ", String.valueOf(nonePlayerCImgaes[1].getTranslationY()));
-        //handler.dispatchMessage(new Message());
     }//Oncreate 종료
 }//메인 액티비티 종료
