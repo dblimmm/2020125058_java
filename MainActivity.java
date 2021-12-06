@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.animation.ObjectAnimator;
+import android.content.Context;
 import android.os.Bundle;
 import android.os.Message;
 import android.util.Log;
@@ -240,7 +241,8 @@ class PlayerCharacter extends ChaRacter
 
     public void useDoor(int x, int y) //문을 사용할 때 x,y를 받아서 한번에 이동한다.
     {
-        if(actionPoint > 0) {
+        if(actionPoint > 0)
+        {
             //문을 사용할 때는 나왔던 문의 isitused 값이 변경되어야 한다.
             xCoordinate = x;
             yCoordinate = y;
@@ -269,6 +271,7 @@ class PlayerCharacter extends ChaRacter
     {
         candy++;
         secondRoll = true; //캔디를 얻고 두번째 주사위 굴림 기회를 얻습니다!
+        actionPoint = 0; //액션 포인트를 0으로 초기화 해버림
     }
 
     public void resetSecondRolled() {
@@ -305,50 +308,133 @@ class PlayerCharacter extends ChaRacter
     }
 }
 
+class MyHandlerMessages extends Handler
+{
+    //이게 되나 싶지만서도 심지어 위의 클래스에서 써야 하니까 ... ... 안될껄?... .. 각각에 또 context를 인자로 넣어야 하잖아
+    public static void needRollMessage(Context context)
+    {
+        Toast.makeText(context, "AP가 없습니다. 주사위를 먼저 굴려주세요.", Toast.LENGTH_SHORT).show();
+    }
+    public static void cantMoveMessage(Context context)
+    {
+        Toast.makeText(context, "해당 방향으로는 이동할 수 없습니다.", Toast.LENGTH_SHORT).show();
+    }
+}
+
 public class MainActivity extends AppCompatActivity
 {
     //변수들 선언
+    //아이디들
     private int[] playerCIDs = {R.id.c1, R.id.c4};
     private int[] nonePlayerCIDs = {R.id.c2, R.id.c3};
-    private int[] charactersSoulImages = {R.drawable.c1_soul, R.drawable.c2_soul, R.drawable.c3_soul, R.drawable.c4_soul};
-    //door들은 어떻게 관리할 지 생각해야 함
+    //pc1, pc2, npc1, npc2순서로 이미지들(흐린 이미지, 일반 이미지 변환용)
+    private int[] charactersOriImages = {R.drawable.c1, R.drawable.c4, R.drawable.c2, R.drawable.c3};
+    private int[] charactersSoulImages = {R.drawable.c1_soul, R.drawable.c4_soul, R.drawable.c2_soul, R.drawable.c3_soul};
+    //ImageView객체들, pc, npc, door
     private ImageView[] playerCImgaes = new ImageView[2];
     private ImageView[] nonePlayerCImgaes = new ImageView[2];
-
+    private ImageView[] doorImages = {findViewById(R.id.door0), findViewById(R.id.door1), findViewById(R.id.door2),
+            findViewById(R.id.door3), findViewById(R.id.door4), findViewById(R.id.door5), findViewById(R.id.door6),
+            findViewById(R.id.door7)};
+    //ImageView객체들, 버튼
     private ImageView btnDice;
     private ImageView btnRight;
     private ImageView btnLeft;
-
+    private ImageView btnUseDoor;
+    //thread 계속해서 실행
     private boolean threadOn = true;
-
+    //문 사용 확인하는 스레드, 캐릭터간 이것저것 확인하는 스레드
     private Thread checkCharacterThread;
     private Thread checkDoorThread;
-    private boolean isHereDoor;
+    //현재 위치에 문이 있는지 확인, 어떤 문인지 확인하는 용도의 변수(같은 문 사이에 이동 가능함)
+    //private boolean isHereDoor; //이건 필요가 없네! door이 없을 때는 밑에 'none'을 넣으면 되니 구분 가능함.
+    private String hereDoorShape;
 
-    private int whosTrun = 0; //어떤 플레이어의 턴인지 확인하는 것
+    private int whosTrun = 0; //어떤 플레이어의 턴인지 확인하는 것. 인덱스로 사용함. 0, 1만 가능.
 
     //각 리스트 선언
-    ArrayList<Door> doors = new ArrayList<Door>(); //맵에 깔린 Door를 관리하는 리스트
+    private ArrayList<Door> doors = new ArrayList<Door>(); //맵에 깔린 Door 정보를 관리하는 리스트
     private ArrayList<PlayerCharacter> playerCharacters = new ArrayList<PlayerCharacter>();
     private ArrayList<NounPlayerCharacter> nounPlayerCharacters = new ArrayList<NounPlayerCharacter>();
 
-    private Handler handler = new Handler(){
-        @Override
-        public void handleMessage(@NonNull Message msg) {
+    //캐릭터들 번호 받아서 이미지 변경, 이미지 리셋, 이미지 이동 등 처리하는 핸들러
+    class MyHandler extends Handler
+    {
+        //toast 메시지 출력
+        /*
+        public void handleMessage(@NonNull Message msg)
+        {
             Toast.makeText(getApplicationContext(), "핸들러 작동 확인 합니다요.", Toast.LENGTH_SHORT).show();
         }
-        /* 이미지 바꾸는거 되나 실험해 봤는데(됨) 각 캐릭터에 이미지 연결하는거 인자로 캐릭터 index값 받아서 여차저차 하면 될 것 같고
-        R.drawable.id이거 값이 int로 들어가는 것도 확인 했는데 override에 인자를 추가하는 방법을 모르겠다
-        @Override
-        public void dispatchMessage(@NonNull Message msg) {
-            nonePlayerCImgaes[0].setImageResource(R.drawable.c2_soul);
-        }
-        */
-    };
+         */
 
-   //아하!!! 이 안에서 반복이 아니라 정의해두는거구나 이거 누르면 이렇게 움직이라고!!!!!!!!!
-    //그래서 이 안에서 반복문 쓰면 안됨 화면이 안뜸 이거는 무족건 실행이 바로 완료되어야 함
-    //아니 그럼 내 반복문은 어디에 쓰란 말이냐아~~? ->스레드와 핸들을 이용하자 !!
+        //고민지점 : 해당 메시지 출력 조건을 계산하는 것은 저어기 밖에 캐릭터 클래스에 있음.
+        //그래서 핸들러를 밖에서 새로 정의하려 했더니 getApplicationContext가 뭔지 확인해보셔야 할 듯 하여요
+        public void needRollMessage()
+        {
+            Toast.makeText(getApplicationContext(), "AP가 없습니다. 주사위를 먼저 굴려주세요.", Toast.LENGTH_SHORT).show();
+        }
+        public void cantMoveMessage()
+        {
+            Toast.makeText(getApplicationContext(), "해당 방향으로는 이동할 수 없습니다.", Toast.LENGTH_SHORT).show();
+        }
+
+        //이미지 변경
+        public void changeNpcImageToSoul(int i)
+        {
+            nonePlayerCImgaes[i].setImageResource(charactersSoulImages[i + 2]);
+        }
+        public void changePcImageToSoul(int i)
+        {
+            playerCImgaes[i].setImageResource(charactersSoulImages[i]);
+        }
+        public void resetNpcImage(int i)
+        {
+            nonePlayerCImgaes[i].setImageResource(charactersOriImages[i + 2]);
+        }
+        public void resetPcImage(int i)
+        {
+            playerCImgaes[i].setImageResource(charactersOriImages[i]);
+        }
+
+        //npc랜덤 이동, 이미지 이동
+        public void npcRandomMove()
+        {
+            for (NounPlayerCharacter npc : nounPlayerCharacters)
+            {
+                npc.randomMove(); //이동시키고
+                //애니메이션
+                float x = -390 + npc.getX() * 135;
+                nonePlayerCImgaes[nounPlayerCharacters.indexOf(npc)].setTranslationX(x);
+                //ObjectAnimator animation = ObjectAnimator.ofFloat(nonePlayerCImgaes[nounPlayerCharacters.indexOf(npc)], "translationX", x);//고정 좌표
+                //animation.setDuration(200); //몇초동안 애니메이션 일어날 건지
+                //animation.start(); //thread안에서 화면에 관여할 수 없음.
+                //android.util.AndroidRuntimeException: Animators may only be run on Looper threads오류 발생
+
+                //pc두명 돌면서 충돌 있는지 확인
+                for (PlayerCharacter pc : playerCharacters)
+                {
+                    if (npc.getX() == pc.getX() && npc.getY() == pc.getY())
+                    {
+                        pc.attacked(); //이미지 변경은 안하도록 해요...
+                        npc.earnCandy();
+                    }
+                }//pc두명 돌면서 npc와의 충돌이 있는지 확인하는 for문 끝
+
+                //npc의 한 턴이 끝나면 isItAttacked를 초기화해요
+                for (PlayerCharacter pc : playerCharacters) {
+                    pc.resetAttacked();
+                }
+
+            }//npc두명 돌면서 랜덤 이동시키는 for문 끝
+        }//npc랜덤 이동시키는 함수 끝
+    }//MyHandler클래스 끝
+    //핸들러 객체
+    private MyHandler myHandler = new MyHandler();
+
+    //@@@@@@밑으로 온 크리에이트@@@@@@@@@@@@@@@@@@@@@@@@@
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     @Override
     protected void onCreate(Bundle savedInstanceState){
         //기존에 있던 코드 두 줄
@@ -356,7 +442,7 @@ public class MainActivity extends AppCompatActivity
         setContentView(R.layout.activity_main);
 
 
-        //PC, NPC, DOOR 리스트에 추가. 초기 설정.
+        //PC, NPC, DOOR (정보값) 리스트에 추가. 초기 설정.
         playerCharacters.add(new PlayerCharacter(3, 0, "N"));
         playerCharacters.add(new PlayerCharacter(3, 3, "D"));
 
@@ -381,6 +467,7 @@ public class MainActivity extends AppCompatActivity
         btnDice = findViewById(R.id.btn_dice);
         btnLeft = findViewById(R.id.btn_left);
         btnRight = findViewById(R.id.btn_right);
+        btnUseDoor = findViewById(R.id.btn_usedoor);
 
         //오른쪽 버튼을 눌렀을 때
         btnRight.setOnClickListener(new View.OnClickListener()
@@ -425,6 +512,28 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
+        //각 문 버튼을 눌러 이동이 가능합니다
+        doorImages[0].setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                //캐릭터가 위치한 곳의 doorShape와 누른 곳의 doorShape가 같으면
+                if(hereDoorShape.equals(doors.get(0).getShape()))
+                {
+                    //x, y 정보값 변경
+                    playerCharacters.get(whosTrun).useDoor(doors.get(0).getX(), doors.get(0).getY());
+                    //변경된 x, y토대로 좌표값 설정
+                    float x = -390 +  playerCharacters.get(whosTrun).getX() * 135;
+                    float y = playerCharacters.get(whosTrun).getY() * 160;
+                    //설정된 좌표값으로 이미지 이동
+                    playerCImgaes[whosTrun].setTranslationX(x);
+                    playerCImgaes[whosTrun].setTranslationY(y);
+                }
+            }
+        });
+
+
         checkDoorThread = new Thread()
         {
             public void run()
@@ -437,17 +546,24 @@ public class MainActivity extends AppCompatActivity
                 //나온 문은 사용되었음을 확인하는 변수가 변경 됨.
                 for (Door door : doors) {
                     //모든 문을 돌면서 pc랑 같은 위치에 있는 문이 있는지 확인하여 isHereDoor 값을 변경함.
-                    if (door.getX() == playerCharacters.get(whosTrun).getX() && door.getY() == playerCharacters.get(whosTrun).getY())
+                    while(threadOn)
                     {
-                        isHereDoor = true;
-                    }else {
-                        isHereDoor = false;
-                    }
-                    //계속 체크하고 있는거니 sleep쪼금 준다!
-                    try {
-                        sleep(50);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        if (door.getX() == playerCharacters.get(whosTrun).getX() && door.getY() == playerCharacters.get(whosTrun).getY())
+                        {
+                            hereDoorShape = door.getShape();
+                        } else
+                        {
+                            hereDoorShape = "None";
+                        }
+
+                        //계속 체크하고 있는거니 sleep쪼금 준다!
+                        try
+                        {
+                            sleep(50);
+                        } catch (InterruptedException e)
+                        {
+                            e.printStackTrace();
+                        }
                     }
                 }
             }
@@ -457,7 +573,8 @@ public class MainActivity extends AppCompatActivity
 
         checkCharacterThread = new Thread()
         {
-            public void run(){
+            public void run()
+            {
                 while (threadOn) //theadOn인 동안 계속 실행!
                 {
 
@@ -474,7 +591,7 @@ public class MainActivity extends AppCompatActivity
                     }
 
                     //액션 포인트가 0이 아닌 경우. 마지막 굴림까지 끝내고 ap가 0인 경우를 해결하지 못함
-                    while (playerCharacters.get(whosTrun).getActionPoint() != 0)
+                    while (playerCharacters.get(whosTrun).getActionPoint() != 0 || playerCharacters.get(whosTrun).getSecondRoll())
                     {
                         //door 관련 코드 일단 전체 삭제하였음.!!!! 캐릭터들의 : 턴 넘김, 공격, 주사위, npc이동부터 만들기.
                         //door관련은 자기 자리에 door이 있는지
@@ -482,7 +599,10 @@ public class MainActivity extends AppCompatActivity
                         for (NounPlayerCharacter npc : nounPlayerCharacters)
                         {
                             if (playerCharacters.get(whosTrun).getX() == npc.getX() && playerCharacters.get(whosTrun).getY() == npc.getY() && npc.getCandy() > 0 && !npc.getIsItAttacked()) {
-                                npc.attacked(); //이 함수는 handle에서 외관 관련 손보아야 함! >실패
+                                //npc 어택당하고 이미지 변경
+                                npc.attacked();
+                                myHandler.changeNpcImageToSoul(nounPlayerCharacters.indexOf(npc));
+                                //pc는 캔디를 얻어요
                                 playerCharacters.get(whosTrun).earnCandy();
                                 //캔디 먹은 뒤에는 주사위를 다시 굴려야 함(본인 턴에 1회만 가능), earnCandy 내에서 boolean 값 수정
                             }// 같은 칸에 있는 npc리스트 확인하는 if문 끝
@@ -491,13 +611,25 @@ public class MainActivity extends AppCompatActivity
                             if (playerCharacters.get(whosTrun) != pc2 && playerCharacters.get(whosTrun).getX() == pc2.getX() && playerCharacters.get(whosTrun).getY() == pc2.getY()
                                     && pc2.getCandy() > 0 && !pc2.getIsItAttacked())
                             {
+                                //pc2어택당하고 이미지 변경
                                 pc2.attacked();
+                                myHandler.changePcImageToSoul(playerCharacters.indexOf(pc2));
+                                //pc는 캔디를 얻어요
                                 playerCharacters.get(whosTrun).earnCandy();
                             }
                         }//캔디 먹는거 확인용으로 pc2리스트 도는 거 끝
+                        try
+                        {
+                            sleep(5);
+                        } catch (InterruptedException e)
+                        {
+                            e.printStackTrace();
+                        }
                     }//한 pc의 액션포인트가 잔존하는 동안 계속 턴 갖는 거 끝
 
-                    playerCharacters.get(whosTrun).resetSecondRolled(); //pc의 boolean들 전체 초기화
+                    playerCharacters.get(whosTrun).resetSecondRolled(); //방금 pc 의 boolean들 전체 초기화
+
+                    //차례 넘김
                     if(whosTrun == 0)
                     {
                         whosTrun = 1;
@@ -512,42 +644,26 @@ public class MainActivity extends AppCompatActivity
                     for (Door door : doors) {
                         door.resetUse();
                     }*/
-                    //pc턴 종료마다 모든 캐릭터 공격당했는지 확인 하는 것 0으로 초기화
+
+                    //pc턴 종료마다 모든 캐릭터 공격당했는지 확인 하는 것 0으로 초기화, 이미지도 초기화
                     for (NounPlayerCharacter npc : nounPlayerCharacters) {
                         npc.resetAttacked();
+                        myHandler.resetNpcImage(nounPlayerCharacters.indexOf(npc));
                     }
                     for (PlayerCharacter pc2 : playerCharacters) {
                         pc2.resetAttacked();
+                        myHandler.resetPcImage(playerCharacters.indexOf(pc2));
                     }
 
-                    //^두명의 pc행동을 마친 뒤^ 두 npc도 이동시키고 다음 라운드
-                    for (NounPlayerCharacter npc : nounPlayerCharacters) {
-                        npc.randomMove(); //이동시키고
-                        //애니메이션
-                        float x = -390 + npc.getX() * 135;
-                        ObjectAnimator animation = ObjectAnimator.ofFloat(nonePlayerCImgaes[nounPlayerCharacters.indexOf(npc)], "translationX", x);//고정 좌표
-                        animation.setDuration(200); //몇초동안 애니메이션 일어날 건지
-                        //animation.start(); //thread안에서 화면에 관여할 수 없음. 근데 animaition이 객체라서 이 줄만 옮겨갈 수 없음. ,
-                        //pc두명 돌면서 충돌 있는지 확인
-                        for (PlayerCharacter pc : playerCharacters) {
-                            if (npc.getX() == pc.getX() && npc.getY() == pc.getY()) {
-                                pc.attacked();
-                                npc.earnCandy();
-                            }
-                        }//pc두명 돌면서 npc와의 충돌이 있는지 확인하는 for문 끝
+                    //한 캐릭터 턴이 끝날 때 마다 npc랜덤하게 이동함.
+                    myHandler.npcRandomMove();
 
-                        //npc의 한 턴이 끝나면 isItAttacked를 초기화해요
-                        for (PlayerCharacter pc : playerCharacters) {
-                            pc.resetAttacked();
-                        }
-
-                    }//npc두명 돌면서 랜덤 이동시키는 for문 끝
                 }//theadOn인동안 계속 도는 while 끝
 
             }//thead public void run(){}종료
         }; //thread = new Thead(){};종료
+
         checkCharacterThread.start();
-        handler.sendEmptyMessage(0); //핸들러 Toast 잘 작동되나 확인해요
         Log.e("c2 Y : ", String.valueOf(nonePlayerCImgaes[0].getTranslationY()));
         Log.e("c3 Y : ", String.valueOf(nonePlayerCImgaes[1].getTranslationY()));
         //handler.dispatchMessage(new Message());
