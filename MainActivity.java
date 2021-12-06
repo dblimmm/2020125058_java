@@ -271,8 +271,11 @@ class PlayerCharacter extends ChaRacter
     public void earnCandy()
     {
         candy++;
-        secondRoll = true; //캔디를 얻고 두번째 주사위 굴림 기회를 얻습니다!
-        actionPoint = 0; //액션 포인트를 0으로 초기화 해버림
+        if(!secondRolled)
+        {
+            secondRoll = true; //캔디를 얻고 두번째 주사위 굴림 기회를 얻습니다!
+            actionPoint = 0; //액션 포인트를 0으로 초기화 해버림
+        }
     }
 
     public void resetSecondRolled() {
@@ -311,6 +314,7 @@ class PlayerCharacter extends ChaRacter
         Log.e("testPrint pc", "순서대로 x, y, candy, ap" + String.valueOf(xCoordinate) + String.valueOf(yCoordinate) + String.valueOf(candy) + String.valueOf(actionPoint));
     }
 }
+
 
 class MyHandlerMessages extends Handler
 {
@@ -356,7 +360,7 @@ public class MainActivity extends AppCompatActivity
     //private Thread checkDoorThread;
     //현재 위치에 문이 있는지 확인, 어떤 문인지 확인하는 용도의 변수(같은 문 사이에 이동 가능함)
     //private boolean isHereDoor; //이건 필요가 없네! door이 없을 때는 밑에 'none'을 넣으면 되니 구분 가능함.
-    private String hereDoorShape;
+    private String hereDoorShape = "String";
     //어떤 플레이어의 턴인지 확인하는 것. 인덱스로 사용함. 0, 1만 가능.
     private int whosTrun = 0;
 
@@ -459,6 +463,7 @@ public class MainActivity extends AppCompatActivity
     //핸들러 객체
     private MyHandler myHandler = new MyHandler();
 
+    //캐릭터가 위치한 자리에 어떤 door이 있는지 체크하는 함수
     public void checkDoorHere()
     {
         //"D"를 입력해 자신 위치의 문을 사용하는 경우
@@ -468,6 +473,7 @@ public class MainActivity extends AppCompatActivity
         //그 문으로 이동이 가능하게끔 함.
         //나온 문은 사용되었음을 확인하는 변수가 변경 됨.
         int count = 0;
+
         for (Door door : doors)
         {
             //모든 문을 돌면서 pc랑 같은 위치에 있는 문의 모양값을 받습니다.
@@ -484,7 +490,7 @@ public class MainActivity extends AppCompatActivity
                 count++;
             }
         }
-        if(count == 6)
+        if(count == 8)
         {
             hereDoorShape = "None";
             //Log.e("door", "Here door shape is None");
@@ -493,6 +499,7 @@ public class MainActivity extends AppCompatActivity
 
     }
 
+    //캐릭터의 이동 후 다른 캐릭터와 부딪혔는지 확인하는 함수
     public void checkCrashCharacter()
     {
         for (NounPlayerCharacter npc : nounPlayerCharacters)
@@ -610,38 +617,13 @@ public class MainActivity extends AppCompatActivity
                 checkCrashCharacter();
                 //x = playerCImgaes[0].getTranslationX();
                 //Log.e("xWitch:", String.valueOf(x));
-                playerCharacters.get(whosTrun).testPrint();
+                //playerCharacters.get(whosTrun).testPrint();
             }
         });
 
 
         //각 문 버튼을 눌러 이동이 가능합니다
         //pc1이 0번 문에서 6번 문 이동 문제 없음 확인
-        doorImages[6].setOnClickListener(new View.OnClickListener()
-        {
-            @Override
-            public void onClick(View v)
-            {
-                //캐릭터가 위치한 곳의 doorShape와 누른 곳의 doorShape가 같으면
-                checkDoorHere();
-                if (hereDoorShape.equals(doors.get(6).getShape()))
-                {
-                    //x, y 정보값 변경
-                    playerCharacters.get(whosTrun).useDoor(doors.get(6).getX(), doors.get(6).getY());
-                    Log.e("used door,", "now pc X and Y is" + String.valueOf(playerCharacters.get(whosTrun).getX()) + String.valueOf(playerCharacters.get(whosTrun).getY()));
-                    //변경된 x, y토대로 좌표값 설정
-                    float x = -390 + playerCharacters.get(whosTrun).getX() * 135;
-                    float y = playerCharacters.get(whosTrun).getY() * 278;
-                    //설정된 좌표값으로 이미지 이동
-                    playerCImgaes[whosTrun].setTranslationX(x);
-                    playerCImgaes[whosTrun].setTranslationY(y);
-                }
-                Log.e("Door", "door[6] clicked");
-                Log.e("Door", "door[6]shape is " + doors.get(6).getShape());
-                Log.e("Door", "hereDoorShape is " + hereDoorShape);
-            }
-        });
-
         doorImages[0].setOnClickListener(new View.OnClickListener()
         {
             @Override
@@ -653,17 +635,211 @@ public class MainActivity extends AppCompatActivity
                 {
                     //x, y 정보값 변경
                     playerCharacters.get(whosTrun).useDoor(doors.get(0).getX(), doors.get(0).getY());
-                    Log.e("used door,", "now pc X and Y is" + String.valueOf(playerCharacters.get(whosTrun).getX()) + String.valueOf(playerCharacters.get(whosTrun).getY()));
+                    //Log.e("used door,", "now pc X and Y is" + String.valueOf(playerCharacters.get(whosTrun).getX()) + String.valueOf(playerCharacters.get(whosTrun).getY()));
                     //변경된 x, y토대로 좌표값 설정
                     float x = -390 + playerCharacters.get(whosTrun).getX() * 135;
                     float y = playerCharacters.get(whosTrun).getY() * 278;
+                    //상대좌표기에 pc2의 경우 다른 방법으로 계산
+                    if(whosTrun == 1)
+                    {
+                        y = -825 + playerCharacters.get(whosTrun).getY() * 278;
+                    }
                     //설정된 좌표값으로 이미지 이동
                     playerCImgaes[whosTrun].setTranslationX(x);
                     playerCImgaes[whosTrun].setTranslationY(y);
                 }
-                Log.e("Door", "door[6] clicked");
-                Log.e("Door", "door[6]shape is " + doors.get(0).getShape());
-                Log.e("Door", "hereDoorShape is " + hereDoorShape);
+            }
+        });
+
+        doorImages[1].setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                //캐릭터가 위치한 곳의 doorShape와 누른 곳의 doorShape가 같으면
+                checkDoorHere();
+                if (hereDoorShape.equals(doors.get(1).getShape()))
+                {
+                    //x, y 정보값 변경
+                    playerCharacters.get(whosTrun).useDoor(doors.get(1).getX(), doors.get(1).getY());
+                    //Log.e("used door,", "now pc X and Y is" + String.valueOf(playerCharacters.get(whosTrun).getX()) + String.valueOf(playerCharacters.get(whosTrun).getY()));
+                    //변경된 x, y토대로 좌표값 설정
+                    float x = -390 + playerCharacters.get(whosTrun).getX() * 135;
+                    float y = playerCharacters.get(whosTrun).getY() * 278;
+                    //상대좌표기에 pc2의 경우 다른 방법으로 계산
+                    if(whosTrun == 1)
+                    {
+                        y = -825 + playerCharacters.get(whosTrun).getY() * 278;
+                    }
+                    //설정된 좌표값으로 이미지 이동
+                    playerCImgaes[whosTrun].setTranslationX(x);
+                    playerCImgaes[whosTrun].setTranslationY(y);
+                }
+            }
+        });
+
+        doorImages[2].setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                //캐릭터가 위치한 곳의 doorShape와 누른 곳의 doorShape가 같으면
+                checkDoorHere();
+                if (hereDoorShape.equals(doors.get(2).getShape()))
+                {
+                    //x, y 정보값 변경
+                    playerCharacters.get(whosTrun).useDoor(doors.get(2).getX(), doors.get(2).getY());
+                    //Log.e("used door,", "now pc X and Y is" + String.valueOf(playerCharacters.get(whosTrun).getX()) + String.valueOf(playerCharacters.get(whosTrun).getY()));
+                    //변경된 x, y토대로 좌표값 설정
+                    float x = -390 + playerCharacters.get(whosTrun).getX() * 135;
+                    float y = playerCharacters.get(whosTrun).getY() * 278;
+                    //상대좌표기에 pc2의 경우 다른 방법으로 계산
+                    if(whosTrun == 1)
+                    {
+                        y = -825 + playerCharacters.get(whosTrun).getY() * 278;
+                    }
+                    //설정된 좌표값으로 이미지 이동
+                    playerCImgaes[whosTrun].setTranslationX(x);
+                    playerCImgaes[whosTrun].setTranslationY(y);
+                }
+            }
+        });
+
+        doorImages[3].setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                //캐릭터가 위치한 곳의 doorShape와 누른 곳의 doorShape가 같으면
+                checkDoorHere();
+                if (hereDoorShape.equals(doors.get(3).getShape()))
+                {
+                    //x, y 정보값 변경
+                    playerCharacters.get(whosTrun).useDoor(doors.get(3).getX(), doors.get(3).getY());
+                    //Log.e("used door,", "now pc X and Y is" + String.valueOf(playerCharacters.get(whosTrun).getX()) + String.valueOf(playerCharacters.get(whosTrun).getY()));
+                    //변경된 x, y토대로 좌표값 설정
+                    float x = -390 + playerCharacters.get(whosTrun).getX() * 135;
+                    float y = playerCharacters.get(whosTrun).getY() * 278;
+                    //상대좌표기에 pc2의 경우 다른 방법으로 계산
+                    if(whosTrun == 1)
+                    {
+                        y = -825 + playerCharacters.get(whosTrun).getY() * 278;
+                    }
+                    //설정된 좌표값으로 이미지 이동
+                    playerCImgaes[whosTrun].setTranslationX(x);
+                    playerCImgaes[whosTrun].setTranslationY(y);
+                }
+            }
+        });
+
+        doorImages[4].setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                //캐릭터가 위치한 곳의 doorShape와 누른 곳의 doorShape가 같으면
+                checkDoorHere();
+                if (hereDoorShape.equals(doors.get(4).getShape()))
+                {
+                    //x, y 정보값 변경
+                    playerCharacters.get(whosTrun).useDoor(doors.get(4).getX(), doors.get(4).getY());
+                    //Log.e("used door,", "now pc X and Y is" + String.valueOf(playerCharacters.get(whosTrun).getX()) + String.valueOf(playerCharacters.get(whosTrun).getY()));
+                    //변경된 x, y토대로 좌표값 설정
+                    float x = -390 + playerCharacters.get(whosTrun).getX() * 135;
+                    float y = playerCharacters.get(whosTrun).getY() * 278;
+                    //상대좌표기에 pc2의 경우 다른 방법으로 계산
+                    if(whosTrun == 1)
+                    {
+                        y = -825 + playerCharacters.get(whosTrun).getY() * 278;
+                    }
+                    //설정된 좌표값으로 이미지 이동
+                    playerCImgaes[whosTrun].setTranslationX(x);
+                    playerCImgaes[whosTrun].setTranslationY(y);
+                }
+            }
+        });
+
+        doorImages[5].setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                //캐릭터가 위치한 곳의 doorShape와 누른 곳의 doorShape가 같으면
+                checkDoorHere();
+                if (hereDoorShape.equals(doors.get(5).getShape()))
+                {
+                    //x, y 정보값 변경
+                    playerCharacters.get(whosTrun).useDoor(doors.get(5).getX(), doors.get(5).getY());
+                    //Log.e("used door,", "now pc X and Y is" + String.valueOf(playerCharacters.get(whosTrun).getX()) + String.valueOf(playerCharacters.get(whosTrun).getY()));
+                    //변경된 x, y토대로 좌표값 설정
+                    float x = -390 + playerCharacters.get(whosTrun).getX() * 135;
+                    float y = playerCharacters.get(whosTrun).getY() * 278;
+                    //상대좌표기에 pc2의 경우 다른 방법으로 계산
+                    if(whosTrun == 1)
+                    {
+                        y = -825 + playerCharacters.get(whosTrun).getY() * 278;
+                    }
+                    //설정된 좌표값으로 이미지 이동
+                    playerCImgaes[whosTrun].setTranslationX(x);
+                    playerCImgaes[whosTrun].setTranslationY(y);
+                }
+            }
+        });
+
+        doorImages[6].setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                //캐릭터가 위치한 곳의 doorShape와 누른 곳의 doorShape가 같으면
+                checkDoorHere();
+                if (hereDoorShape.equals(doors.get(6).getShape()))
+                {
+                    //x, y 정보값 변경
+                    playerCharacters.get(whosTrun).useDoor(doors.get(6).getX(), doors.get(6).getY());
+                    //Log.e("used door,", "now pc X and Y is" + String.valueOf(playerCharacters.get(whosTrun).getX()) + String.valueOf(playerCharacters.get(whosTrun).getY()));
+                    //변경된 x, y토대로 좌표값 설정
+                    float x = -390 + playerCharacters.get(whosTrun).getX() * 135;
+                    float y = playerCharacters.get(whosTrun).getY() * 278;
+                    if(whosTrun == 1)
+                    {
+                        y = -900 + playerCharacters.get(whosTrun).getY() * 278;
+                    }
+                    //설정된 좌표값으로 이미지 이동
+                    playerCImgaes[whosTrun].setTranslationX(x);
+                    playerCImgaes[whosTrun].setTranslationY(y);
+                }
+                //playerCharacters.get(whosTrun).testPrint();
+                //Log.e("Door", "door[6] clicked");
+                //Log.e("Door", "door[6]shape is " + doors.get(6).getShape());
+                //Log.e("Door", "hereDoorShape is " + hereDoorShape);
+            }
+        });
+
+        doorImages[7].setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                //캐릭터가 위치한 곳의 doorShape와 누른 곳의 doorShape가 같으면
+                checkDoorHere();
+                if (hereDoorShape.equals(doors.get(7).getShape()))
+                {
+                    //x, y 정보값 변경
+                    playerCharacters.get(whosTrun).useDoor(doors.get(7).getX(), doors.get(7).getY());
+                    //Log.e("used door,", "now pc X and Y is" + String.valueOf(playerCharacters.get(whosTrun).getX()) + String.valueOf(playerCharacters.get(whosTrun).getY()));
+                    //변경된 x, y토대로 좌표값 설정
+                    float x = -390 + playerCharacters.get(whosTrun).getX() * 135;
+                    float y = playerCharacters.get(whosTrun).getY() * 278;
+                    //상대좌표기에 pc2의 경우 다른 방법으로 계산
+                    if(whosTrun == 1)
+                    {
+                        y = -825 + playerCharacters.get(whosTrun).getY() * 278;
+                    }
+                    //설정된 좌표값으로 이미지 이동
+                    playerCImgaes[whosTrun].setTranslationX(x);
+                    playerCImgaes[whosTrun].setTranslationY(y);
+                }
             }
         });
 
@@ -680,32 +856,6 @@ public class MainActivity extends AppCompatActivity
                         while(threadOn)
                         {
                             //door 관련 코드 일단 전체 삭제하였음.!!!! 캐릭터들의 : 턴 넘김, 공격, 주사위, npc이동부터 만들기.
-                            //항상 수행되고 있는 코드니까... 계속 같은 칸에 누가 있는지 돌면서 확인하면 되겠다
-                            /*
-                            for (NounPlayerCharacter npc : nounPlayerCharacters)
-                            {
-                                if (playerCharacters.get(whosTrun).getX() == npc.getX() && playerCharacters.get(whosTrun).getY() == npc.getY() && npc.getCandy() > 0 && !npc.getIsItAttacked())
-                                {
-                                    //npc 어택당하고 이미지 변경
-                                    npc.attacked();
-                                    myHandler.changeNpcImageToSoul(nounPlayerCharacters.indexOf(npc));
-                                    //pc는 캔디를 얻어요
-                                    playerCharacters.get(whosTrun).earnCandy();
-                                    //캔디 먹은 뒤에는 주사위를 다시 굴려야 함(본인 턴에 1회만 가능), earnCandy 내에서 boolean 값 수정
-                                }// 같은 칸에 있는 npc리스트 확인하는 if문 끝
-                            }//캔디 먹는 거 확인용으로 npc리스트 도는 거 끝
-                            for (PlayerCharacter pc2 : playerCharacters)
-                            {//리스트에서 자신이 아닌 다른 pc캐릭터이며 위치가 같은 경우
-                                if (playerCharacters.get(whosTrun) != pc2 && playerCharacters.get(whosTrun).getX() == pc2.getX() && playerCharacters.get(whosTrun).getY() == pc2.getY()
-                                        && pc2.getCandy() > 0 && !pc2.getIsItAttacked())
-                                {
-                                    //pc2어택당하고 이미지 변경
-                                    pc2.attacked();
-                                    myHandler.changePcImageToSoul(playerCharacters.indexOf(pc2));
-                                    //pc는 캔디를 얻어요
-                                    playerCharacters.get(whosTrun).earnCandy();
-                                }
-                            }//캔디 먹는거 확인용으로 pc2리스트 도는 거 끝*/
                             //여기서 textview수정하면 되지 않을까
                             myHandler.setTextView(playerCharacters.get(whosTrun).getActionPoint(), playerCharacters.get(whosTrun).getCandy());
 
@@ -739,7 +889,6 @@ public class MainActivity extends AppCompatActivity
                     //차례 변경 후 textView도 수정
                     myHandler.setTextView(playerCharacters.get(whosTrun).getActionPoint(), playerCharacters.get(whosTrun).getCandy());
 
-                    //System.out.printf("턴을 마쳤습니다.\n");
 
                     //pc턴 종료마다 모든 문 사용했는지 확인 하는 것 0으로 초기화
                     /*
