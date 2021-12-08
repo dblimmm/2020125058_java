@@ -62,17 +62,6 @@ public class MainActivity extends AppCompatActivity
     //캐릭터들 번호 받아서 이미지 변경, 이미지 리셋, 이미지 이동 등 처리하는 핸들러 선언
     class MyHandler extends Handler
     {
-        //고민지점 : 해당 메시지 출력 조건을 계산하는 것은 저어기 밖에 캐릭터 클래스에 있음.
-        //그래서 핸들러를 밖에서 새로 정의하려 했더니 getApplicationContext가 뭔지 확인해보셔야 할 듯 하여요
-        public void needRollMessage()
-        {
-            Toast.makeText(getApplicationContext(), "AP가 없습니다. 주사위를 먼저 굴려주세요.", Toast.LENGTH_SHORT).show();
-        }
-        public void cantMoveMessage()
-        {
-            Toast.makeText(getApplicationContext(), "해당 방향으로는 이동할 수 없습니다.", Toast.LENGTH_SHORT).show();
-        }
-
         //이미지 변경 (공격 당함 / 멀쩡)
         public void changeNpcImageToSoul(int i)
         {
