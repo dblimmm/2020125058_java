@@ -18,10 +18,6 @@ class Dice
 
 class ChaRacter
 {
-    //모든 캐릭터는 x. y좌표가 있고 이동이 가능 함. 캔디를 가지고 있음.
-    //플레이어 캐릭터는 문을 사용할 수 있음.
-    //플레이어 캐릭터는 주사위를 굴릴 수 있음. AP(액션 포인트)를 갖고 있어야함.
-    //상속하니까 private(X) protected(O)
     protected int xCoordinate; //x = 0~6 사이의 값을 가짐.
     protected int yCoordinate; //y = 0~3
     protected int candy; //소지 캔디 갯수
@@ -94,10 +90,10 @@ class NounPlayerCharacter extends ChaRacter
     {
         //x를 -1~1칸 랜덤하게 움직이도록 함.
         while(true)
-        {//다른 pc가 있는 곳으로는 움직이지 않게 피해다니고 싶은데 어떻게 할 지 고민. ->피하지 않고 공격하는 게 나은 듯
-            //3면체 주사위를 굴리고 2를 빼서 -1, 0, 1의 결과값
+        {
+            //3면체 주사위를 굴리고 2를 빼서 -1, 0, 1의 결과값을 가진다
             int dice = (Dice.rollingDice(3) - 2);
-            if ((xCoordinate + dice > 0) && (xCoordinate + dice < 6)) //결과값이 벽 뚫고 지나가지 않는다면
+            if ((xCoordinate + dice > 0) && (xCoordinate + dice < 6)) //결과값이 이동 가능 범위를 벗어나지 않는다면
             {
                 xCoordinate += dice; //이동 후 종료
                 break;
@@ -110,14 +106,11 @@ class NounPlayerCharacter extends ChaRacter
 class PlayerCharacter extends ChaRacter
 {
     private int actionPoint = 0;
-    private ArrayList<Door> hasDoors; //갖고 있는 문의 종류에 대한 리스트
-    //처음 생성할 때 한개의 문을 갖고 시작함.
-    private boolean secondRoll; //자신의 턴에서 두번째 주사위 굴림 기회가 있는지(상대방의 사탕을 먹은 뒤) 체크함.
-    //이것으로 한 턴에 여러 사람을 공격했을 때 매번 주사위를 굴리는 것을 방지.
-    private boolean firstRoll; //초기에 주사위 여러번 굴리는 것 방지.
-    //둘다 true일 때 굴림 기회가 있는걸로 하고 굴림 기회를 소진하면 false로 변경
-    //근데 이렇게 하면 secondRoll을 여러번 할 수 있는 불상사가 생긴다!
-    private boolean secondRolled; //두번째 주사위를 굴렸던 적이 있는지 따로 체크하자
+    //private ArrayList<Door> hasDoors; //갖고 있는 문의 종류에 대한 리스트, 처음 생성할 때 한개의 문을 갖고 시작함.
+
+    private boolean secondRoll; //자신의 턴에서 두번째 주사위 굴림 기회가 있는지(상대방의 사탕을 먹은 뒤) 체크한다.
+    private boolean firstRoll; //초기에 주사위 여러번 굴리는 것 방지. 첫번째 굴림 기회가 있으면 true로 표시한다.
+    private boolean secondRolled; //두번째 주사위를 굴렸던 적이 있는지 체크한다. 한 턴에 둘 이상의 캐릭터를 공격하더라도 굴림 기회는 1회만 추가된다.
 
     public PlayerCharacter(int x, int y, String doorShape) //생성자
     {
@@ -125,24 +118,25 @@ class PlayerCharacter extends ChaRacter
         secondRoll = false;
         firstRoll = true;
         secondRolled = false;
-        hasDoors = new ArrayList<Door>();
-        hasDoors.add(new Door(x, y, doorShape)); //x, y값은 아무렇게나 넣어서 리스트에 추가해둔다.
+        //hasDoors = new ArrayList<Door>();
+        //hasDoors.add(new Door(x, y, doorShape)); //x, y값은 아무렇게나 넣어서 리스트에 추가해둔다.
         //문을 생성할 때는 플레이어 캐릭터의 x,y값을 받아 새 문을 설치하고, 소지 문 목록에서 삭제하기 때문.
     }
 
     public void rollingDice() {
-        if(firstRoll == true)
+        //주사위를 굴리는 함수. 함수 내에서 굴림 기회가 있는지 체크하여 AP를 갱신한다.
+        if(firstRoll == true) //첫번째 굴림 기회가 있는 경우, 주사위를 굴리고 첫번째 굴림 기회를 없앤다.
         {
-            actionPoint = Dice.rollingDice(6); //액션 포인트 추가가 아니라 고정값으로 +=이 아니다.
+            actionPoint = Dice.rollingDice(6); //액션 포인트는 추가가 아니라 고정값으로 +=이 아니다.
             firstRoll = false;
         }
-        else if(secondRoll == true && secondRolled == false) //2번째 굴림 기회를 얻었으면서 2번째 굴림을 한 적 없는 경우
+        else if(secondRoll == true && secondRolled == false) //2번째 굴림 기회를 얻었으면서 2번째 굴림을 한 적 없는 경우, 주사위를 굴리고 boolean을 갱신한다.
         {
             actionPoint = Dice.rollingDice(6); //액션 포인트 추가가 아니라 고정값으로 +=이 아니다.
             secondRoll = false;
             secondRolled = true;
         }
-        else
+        else //굴림기회가 없는 경우
         {
             Log.e("dice error",  "굴림 기회가 없습니다.");
         }
@@ -166,7 +160,7 @@ class PlayerCharacter extends ChaRacter
 
     public void moveLeft() {
         if(actionPoint > 0) {
-            if (xCoordinate != 0) { //액션포인트는 main에서 체크하도록 하여서(액션포인트가 잔존한 한 턴을 이어간다) 좌표만 체크한다.
+            if (xCoordinate != 0) {
                 xCoordinate--;
                 actionPoint--;
             } else {
@@ -189,6 +183,7 @@ class PlayerCharacter extends ChaRacter
         }
     }
 
+    /* 문의 회수와 설치에 관련된 함수이다.
     //문을 회수하면서 갖고 있는 문에 하나를 추가한다.
     public void addDoor(int x, int y, String doorShape) {
         if(actionPoint > 0) {
@@ -204,7 +199,7 @@ class PlayerCharacter extends ChaRacter
             hasDoors.remove(index);
             actionPoint--;
         }
-    }
+    }*/
 
     public void earnCandy()
     {
@@ -223,10 +218,10 @@ class PlayerCharacter extends ChaRacter
     }
 
 
-    //소지하고 있는 Doors리스트를 반환하는 함수인데 이런게 되나? >됨.
+    /*
     public ArrayList<Door> getHasDoors() {
         return hasDoors;
-    }
+    }*/
 
     //밑으로 속성 리턴받는 함수들과 테스트 프린트 함수
     public int getActionPoint() {
@@ -258,7 +253,7 @@ class Door
     final private int xCoordinate;
     final private int yCoordinate;
     final private String shape;
-    private boolean isItUsed; //이것은 '나오는 문'에 대한 속성이다. 나왔던 문이 회수 가능한 지 확인하는 것.
+    //private boolean isItUsed; //이것은 '나오는 문'에 대한 속성이다. 나왔던 문이 회수 가능한 지 확인하는 것.
 
     //생성자
     //문의 쉐이프는 "C", "W", "N", "D"
@@ -267,8 +262,10 @@ class Door
         xCoordinate = x;
         yCoordinate = y;
         this.shape = shape;
-        isItUsed = false;
+        //isItUsed = false;
     }
+
+    /* 문이 사용되었는지 확인하는 속성에 관련된 것으로, 문을 회수할 때 사용한다.
     public void useIt()
     {
         isItUsed = true;
@@ -276,7 +273,7 @@ class Door
     public void resetUse()
     {
         isItUsed = false;
-    }
+    }*/
 
 
     //속성을 return하는 GET함수들
@@ -292,10 +289,12 @@ class Door
     {
         return shape;
     }
+    /*
     public boolean getIsItUsed()
     {
         return isItUsed;
     }
+     */
     public void testPrint()
     {
         //System.out.printf("이 door은 (%d, %d)에 위치한 %s입니다.\n", xCoordinate, yCoordinate, shape);
